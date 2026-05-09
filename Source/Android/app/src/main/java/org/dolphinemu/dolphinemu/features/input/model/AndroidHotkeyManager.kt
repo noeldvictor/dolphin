@@ -125,12 +125,6 @@ class AndroidHotkeyManager {
         val nextSpeed = if (isNormalSpeed) fastForwardSpeed else 1.0f
 
         NativeLibrary.SetEmulationSpeedLimit(nextSpeed)
-
-        if (abs(nextSpeed - 1.0f) < SPEED_EPSILON) {
-            showToast(R.string.hotkey_speed_normal)
-        } else {
-            showToast(R.string.hotkey_speed_fast, (nextSpeed * 100).toInt())
-        }
     }
 
     private fun sanitizeFastForwardSpeed(speed: Float): Float =

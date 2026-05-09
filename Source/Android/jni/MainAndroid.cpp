@@ -125,19 +125,6 @@ void ApplyAutomaticPitchPreservation(float speed)
   s_fast_forward_pitch_override = false;
 }
 
-std::string FormatSpeedLimitMessage(float speed)
-{
-  if (speed <= MIN_SPEED_LIMIT)
-    return "Speed Limit: Unlimited";
-
-  if (ShouldPreservePitchForSpeed(speed))
-  {
-    return fmt::format("Speed Limit: {}% (Pitch Adjusted)",
-                       static_cast<int>(std::lround(speed * 100.0f)));
-  }
-
-  return fmt::format("Speed Limit: {}%", static_cast<int>(std::lround(speed * 100.0f)));
-}
 }  // Anonymous namespace
 
 void UpdatePointer()
@@ -388,7 +375,6 @@ Java_org_dolphinemu_dolphinemu_NativeLibrary_SetEmulationSpeedLimit(JNIEnv*, jcl
   Core::RunOnCPUThread(Core::System::GetInstance(), [sanitized_speed] {
     ApplyAutomaticPitchPreservation(sanitized_speed);
     Config::SetCurrent(Config::MAIN_EMULATION_SPEED, sanitized_speed);
-    Core::DisplayMessage(FormatSpeedLimitMessage(sanitized_speed), 2000);
   });
 }
 
