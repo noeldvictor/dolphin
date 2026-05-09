@@ -40,6 +40,7 @@ import org.dolphinemu.dolphinemu.features.infinitybase.InfinityConfig
 import org.dolphinemu.dolphinemu.features.infinitybase.model.Figure
 import org.dolphinemu.dolphinemu.features.infinitybase.ui.FigureSlot
 import org.dolphinemu.dolphinemu.features.infinitybase.ui.FigureSlotAdapter
+import org.dolphinemu.dolphinemu.features.input.model.AndroidHotkeyManager
 import org.dolphinemu.dolphinemu.features.input.model.ControllerInterface
 import org.dolphinemu.dolphinemu.features.input.model.DolphinSensorEventListener
 import org.dolphinemu.dolphinemu.features.settings.model.BooleanSetting
@@ -71,6 +72,8 @@ class EmulationActivity : AppCompatActivity(), ThemeProvider {
     private var emulationFragment: EmulationFragment? = null
 
     private lateinit var settings: Settings
+
+    private val androidHotkeyManager = AndroidHotkeyManager()
 
     override var themeId = 0
 
@@ -543,6 +546,10 @@ class EmulationActivity : AppCompatActivity(), ThemeProvider {
     // Gets button presses
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (!menuVisible) {
+            if (androidHotkeyManager.dispatchKeyEvent(event)) {
+                return true
+            }
+
             if (ControllerInterface.dispatchKeyEvent(event)) {
                 return true
             }
@@ -980,6 +987,10 @@ class EmulationActivity : AppCompatActivity(), ThemeProvider {
 
     override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
         if (!menuVisible) {
+            if (androidHotkeyManager.dispatchGenericMotionEvent(event)) {
+                return true
+            }
+
             if (ControllerInterface.dispatchGenericMotionEvent(event)) {
                 return true
             }

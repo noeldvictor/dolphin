@@ -74,6 +74,26 @@
     <string name="dual_core_description">Split workload to two CPU cores instead of one. Increases speed.</string>
     <string name="enable_cheats">Enable Cheats</string>
     <string name="speed_limit">Speed Limit (0% = Unlimited)</string>
+    <string name="android_hotkeys">Android Hotkeys</string>
+    <string name="hotkey_save_state">Save State Hotkey</string>
+    <string name="hotkey_load_state">Load State Hotkey</string>
+    <string name="hotkey_speed_toggle">Speed Toggle Hotkey</string>
+    <string name="hotkey_fast_forward_speed">Fast-Forward Speed</string>
+    <string name="hotkey_disabled">Disabled</string>
+    <string name="hotkey_select_right_stick_up">Select + Right Stick Up</string>
+    <string name="hotkey_select_right_stick_down">Select + Right Stick Down</string>
+    <string name="hotkey_select_r">Select + R</string>
+    <string name="hotkey_select_l">Select + L</string>
+    <string name="hotkey_select_dpad_up">Select + D-Pad Up</string>
+    <string name="hotkey_select_dpad_down">Select + D-Pad Down</string>
+    <string name="hotkey_select_dpad_left">Select + D-Pad Left</string>
+    <string name="hotkey_select_dpad_right">Select + D-Pad Right</string>
+    <string name="hotkey_select_start">Select + Start</string>
+    <string name="hotkey_saved_state">Saved state</string>
+    <string name="hotkey_loaded_state">Loaded state</string>
+    <string name="hotkey_savestates_disabled">Savestates are disabled</string>
+    <string name="hotkey_speed_normal">Speed: 100%</string>
+    <string name="hotkey_speed_fast">Speed: %1$d%%</string>
     <string name="overclock_warning">WARNING: Changing this from the default (100%) WILL break games and cause glitches. Please do not report bugs that occur with a non-default clock.</string>
     <string name="achievements_submenu">RetroAchievements</string>
     <string name="gamecube_submenu">GameCube</string>
@@ -546,6 +566,7 @@
     <string name="game_details_size_and_format">%1$s (%2$s)</string>
 
     <!-- Cheats Screen -->
+    <string name="cheat_badge">Cheats</string>
     <string name="cheats">Cheats</string>
     <string name="cheats_with_game_id">Cheats: %1$s</string>
     <string name="cheats_header_ar">AR Codes</string>

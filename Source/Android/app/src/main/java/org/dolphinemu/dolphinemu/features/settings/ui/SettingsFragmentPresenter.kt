@@ -256,6 +256,50 @@ class SettingsFragmentPresenter(
                 false
             )
         )
+        sl.add(HeaderSetting(context, R.string.android_hotkeys, 0))
+        sl.add(
+            SingleChoiceSetting(
+                context,
+                IntSetting.MAIN_HOTKEY_SAVE_STATE,
+                R.string.hotkey_save_state,
+                0,
+                R.array.androidHotkeyEntries,
+                R.array.androidHotkeyValues
+            )
+        )
+        sl.add(
+            SingleChoiceSetting(
+                context,
+                IntSetting.MAIN_HOTKEY_LOAD_STATE,
+                R.string.hotkey_load_state,
+                0,
+                R.array.androidHotkeyEntries,
+                R.array.androidHotkeyValues
+            )
+        )
+        sl.add(
+            SingleChoiceSetting(
+                context,
+                IntSetting.MAIN_HOTKEY_SPEED_TOGGLE,
+                R.string.hotkey_speed_toggle,
+                0,
+                R.array.androidHotkeyEntries,
+                R.array.androidHotkeyValues
+            )
+        )
+        sl.add(
+            PercentSliderSetting(
+                context,
+                FloatSetting.MAIN_HOTKEY_FAST_FORWARD_SPEED,
+                R.string.hotkey_fast_forward_speed,
+                0,
+                100f,
+                400f,
+                "%",
+                1f,
+                false
+            )
+        )
         sl.add(
             SingleChoiceSetting(
                 context,

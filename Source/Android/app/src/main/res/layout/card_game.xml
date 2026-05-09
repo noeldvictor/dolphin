@@ -44,6 +44,23 @@
             android:visibility="visible"
             tools:text="The Legend of Zelda: The Wind Waker" />
 
+        <TextView
+            android:id="@+id/text_cheat_badge"
+            style="@android:style/TextAppearance.Material.Caption"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|end"
+            android:layout_margin="6dp"
+            android:background="@drawable/badge_cheats_background"
+            android:fontFamily="sans-serif-medium"
+            android:includeFontPadding="false"
+            android:text="@string/cheat_badge"
+            android:textAllCaps="true"
+            android:textColor="@android:color/white"
+            android:textSize="10sp"
+            android:visibility="gone"
+            tools:visibility="visible" />
+
     </androidx.cardview.widget.CardView>
 
     <TextView

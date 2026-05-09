@@ -2,6 +2,7 @@ add_library(main SHARED
   AchievementAdapter.cpp
   ActivityTracker.cpp
   Cheats/ARCheat.cpp
+  Cheats/CheatAvailability.cpp
   Cheats/Cheats.h
   Cheats/GeckoCheat.cpp
   Cheats/GraphicsMod.cpp

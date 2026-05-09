@@ -14,10 +14,9 @@ import androidx.core.content.ContextCompat
 import android.widget.ImageView
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.dolphinemu.dolphinemu.dialogs.GamePropertiesDialog
+import org.dolphinemu.dolphinemu.features.cheats.model.CheatAvailability
 import org.dolphinemu.dolphinemu.utils.CoilUtils
 
 /**
@@ -49,6 +48,7 @@ class GameRowPresenter : Presenter() {
         holder.apply {
             imageScreenshot.setImageDrawable(null)
             cardParent.titleText = gameFile.getTitle()
+            cardParent.setBadgeImage(null)
             holder.gameFile = gameFile
 
             // Set the background color of the card
@@ -70,6 +70,16 @@ class GameRowPresenter : Presenter() {
             }
         }
         CoilUtils.loadGameCover(null, holder.imageScreenshot, gameFile)
+
+        (context as? FragmentActivity)?.lifecycleScope?.launch {
+            val hasCheats = CheatAvailability.hasCheats(gameFile)
+            if (holder.gameFile == gameFile) {
+                holder.cardParent.setBadgeImage(
+                    if (hasCheats) ContextCompat.getDrawable(context, R.drawable.ic_cheat_badge)
+                    else null
+                )
+            }
+        }
     }
 
     override fun onUnbindViewHolder(viewHolder: ViewHolder) {

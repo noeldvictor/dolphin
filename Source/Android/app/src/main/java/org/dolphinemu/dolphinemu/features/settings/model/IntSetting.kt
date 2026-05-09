@@ -70,6 +70,24 @@ enum class IntSetting(
         "LastPlatformTab",
         0
     ),
+    MAIN_HOTKEY_SAVE_STATE(
+        Settings.FILE_DOLPHIN,
+        Settings.SECTION_INI_ANDROID,
+        "HotkeySaveState",
+        1
+    ),
+    MAIN_HOTKEY_LOAD_STATE(
+        Settings.FILE_DOLPHIN,
+        Settings.SECTION_INI_ANDROID,
+        "HotkeyLoadState",
+        2
+    ),
+    MAIN_HOTKEY_SPEED_TOGGLE(
+        Settings.FILE_DOLPHIN,
+        Settings.SECTION_INI_ANDROID,
+        "HotkeySpeedToggle",
+        3
+    ),
     MAIN_IR_MODE(
         Settings.FILE_DOLPHIN,
         Settings.SECTION_INI_ANDROID,

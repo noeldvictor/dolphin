@@ -29,6 +29,7 @@ import kotlinx.coroutines.withContext
 import org.dolphinemu.dolphinemu.R
 import org.dolphinemu.dolphinemu.databinding.ActivityCheatsBinding
 import org.dolphinemu.dolphinemu.features.cheats.model.Cheat
+import org.dolphinemu.dolphinemu.features.cheats.model.CheatAvailability
 import org.dolphinemu.dolphinemu.features.cheats.model.CheatsViewModel
 import org.dolphinemu.dolphinemu.features.cheats.model.GeckoCheat.Companion.downloadCodes
 import org.dolphinemu.dolphinemu.features.settings.model.Settings
@@ -188,6 +189,7 @@ class CheatsActivity : AppCompatActivity(), PanelSlideListener {
                             .show()
                     } else {
                         val cheatsAdded = viewModel.addDownloadedGeckoCodes(codes)
+                        CheatAvailability.invalidate(gameId!!, revision)
                         val message =
                             getString(R.string.cheats_download_succeeded, codes.size, cheatsAdded)
                         MaterialAlertDialogBuilder(binding.root.context)

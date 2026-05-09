@@ -16,11 +16,10 @@ import android.view.animation.AnimationUtils
 import org.dolphinemu.dolphinemu.activities.EmulationActivity
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.dolphinemu.dolphinemu.databinding.CardGameBinding
 import org.dolphinemu.dolphinemu.dialogs.GamePropertiesDialog
+import org.dolphinemu.dolphinemu.features.cheats.model.CheatAvailability
 import org.dolphinemu.dolphinemu.features.settings.model.BooleanSetting
 import org.dolphinemu.dolphinemu.utils.CoilUtils
 import java.util.ArrayList
@@ -87,10 +86,18 @@ class GameAdapter : RecyclerView.Adapter<GameViewHolder>(),
                 binding.textGameCaption.text = gameFile.getCompany()
             }
             holder.gameFile = gameFile
+            binding.textCheatBadge.visibility = View.GONE
             binding.root.onFocusChangeListener =
                 View.OnFocusChangeListener { _: View?, hasFocus: Boolean ->
                     binding.cardGameArt.startAnimation(if (hasFocus) animateIn else animateOut)
                 }
+        }
+
+        (context as? FragmentActivity)?.lifecycleScope?.launch {
+            val hasCheats = CheatAvailability.hasCheats(gameFile)
+            if (holder.gameFile == gameFile) {
+                holder.binding.textCheatBadge.visibility = if (hasCheats) View.VISIBLE else View.GONE
+            }
         }
     }
 

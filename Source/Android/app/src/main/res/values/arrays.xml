@@ -15,6 +15,31 @@
         <item>3</item>
     </integer-array>
 
+    <string-array name="androidHotkeyEntries">
+        <item>@string/hotkey_disabled</item>
+        <item>@string/hotkey_select_right_stick_up</item>
+        <item>@string/hotkey_select_right_stick_down</item>
+        <item>@string/hotkey_select_r</item>
+        <item>@string/hotkey_select_l</item>
+        <item>@string/hotkey_select_dpad_up</item>
+        <item>@string/hotkey_select_dpad_down</item>
+        <item>@string/hotkey_select_dpad_left</item>
+        <item>@string/hotkey_select_dpad_right</item>
+        <item>@string/hotkey_select_start</item>
+    </string-array>
+    <integer-array name="androidHotkeyValues">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+        <item>6</item>
+        <item>7</item>
+        <item>8</item>
+        <item>9</item>
+    </integer-array>
+
     <!-- UI CPU Core selection -->
     <string-array name="emuCoresEntriesX86_64">
         <item>@string/jit_recompiler_x86</item>
