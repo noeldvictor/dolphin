@@ -283,20 +283,22 @@ public final class DirectoryInitialization
         return;
       }
 
-      boolean createdFolder = false;
+      if (assetList.length == 0)
+      {
+        copyAsset(assetFolder, outputFolder, context);
+        return;
+      }
+
+      if (!outputFolder.isDirectory() && !outputFolder.mkdirs())
+      {
+        Log.error("[DirectoryInitialization] Failed to create folder " +
+                outputFolder.getAbsolutePath());
+        return;
+      }
+
       for (String file : assetList)
       {
-        if (!createdFolder)
-        {
-          if (!outputFolder.mkdir())
-          {
-            Log.error("[DirectoryInitialization] Failed to create folder " +
-                    outputFolder.getAbsolutePath());
-          }
-          createdFolder = true;
-        }
         copyAssetFolder(assetFolder + File.separator + file, new File(outputFolder, file), context);
-        copyAsset(assetFolder + File.separator + file, new File(outputFolder, file), context);
       }
     }
     catch (IOException e)

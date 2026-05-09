@@ -2,7 +2,7 @@
 <resources>
 
     <!-- Title of the app -->
-    <string name="app_name">Dolphin Emulator</string>
+    <string name="app_name">Dolphin Cheat Helper</string>
     <string name="host">app</string>
     <string name="scheme">dolphinemu</string>
 
@@ -593,6 +593,8 @@
     <string name="cheats_download_empty">File contained no codes.</string>
     <string name="cheats_download_succeeded">Downloaded %1$d codes. (added %2$d)</string>
     <string name="cheats_disabled_warning">Dolphin\'s cheat system is currently disabled.</string>
+    <string name="cheats_enabled">Cheats enabled</string>
+    <string name="cheats_disabled">Cheats disabled</string>
     <string name="gfx_mods_disabled_warning">Graphics mods are currently disabled.</string>
     <string name="cheats_open_settings">Settings</string>
 
@@ -631,6 +633,8 @@ It can efficiently compress both junk data and encrypted Wii data.
     <string name="pause_emulation">Pause Emulation</string>
     <string name="unpause_emulation">Unpause Emulation</string>
     <string name="emulation_screenshot">Take Screenshot</string>
+    <string name="emulation_toggle_cheats_enabled">Cheats: On</string>
+    <string name="emulation_toggle_cheats_disabled">Cheats: Off</string>
     <string name="emulation_savestate">Save State</string>
     <string name="emulation_loadstate">Load State</string>
     <string name="emulation_exit">Exit Emulation</string>

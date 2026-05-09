@@ -45,6 +45,7 @@ import org.dolphinemu.dolphinemu.features.input.model.ControllerInterface
 import org.dolphinemu.dolphinemu.features.input.model.DolphinSensorEventListener
 import org.dolphinemu.dolphinemu.features.settings.model.BooleanSetting
 import org.dolphinemu.dolphinemu.features.settings.model.IntSetting
+import org.dolphinemu.dolphinemu.features.settings.model.NativeConfig
 import org.dolphinemu.dolphinemu.features.settings.model.Settings
 import org.dolphinemu.dolphinemu.features.settings.model.StringSetting
 import org.dolphinemu.dolphinemu.features.settings.ui.MenuTag
@@ -497,6 +498,7 @@ class EmulationActivity : AppCompatActivity(), ThemeProvider {
             }
 
             MENU_ACTION_TAKE_SCREENSHOT -> NativeLibrary.SaveScreenShot()
+            MENU_ACTION_TOGGLE_CHEATS -> toggleCheats()
             MENU_ACTION_QUICK_SAVE -> NativeLibrary.SaveState(9)
             MENU_ACTION_QUICK_LOAD -> NativeLibrary.LoadState(9)
             MENU_ACTION_SAVE_ROOT -> showSubMenu(SaveOrLoad.SAVE)
@@ -531,6 +533,16 @@ class EmulationActivity : AppCompatActivity(), ThemeProvider {
     private fun toggleRecenter(state: Boolean) {
         BooleanSetting.MAIN_IR_ALWAYS_RECENTER.setBoolean(settings, state)
         emulationFragment?.refreshOverlayPointer()
+    }
+
+    private fun toggleCheats() {
+        val enabled = !BooleanSetting.MAIN_ENABLE_CHEATS.boolean
+        BooleanSetting.MAIN_ENABLE_CHEATS.setBoolean(NativeConfig.LAYER_BASE_OR_CURRENT, enabled)
+        BooleanSetting.MAIN_ENABLE_CHEATS.setBoolean(NativeConfig.LAYER_BASE, enabled)
+        NativeConfig.save(NativeConfig.LAYER_BASE)
+
+        val message = if (enabled) R.string.cheats_enabled else R.string.cheats_disabled
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 
     private fun editControlsPlacement() {
@@ -1088,6 +1100,7 @@ class EmulationActivity : AppCompatActivity(), ThemeProvider {
         const val MENU_ACTION_SKYLANDERS = 36
         const val MENU_ACTION_INFINITY_BASE = 37
         const val MENU_ACTION_LATCHING_CONTROLS = 38
+        const val MENU_ACTION_TOGGLE_CHEATS = 39
 
         init {
             buttonsActionsMap.apply {

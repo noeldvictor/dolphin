@@ -51,6 +51,7 @@ class MenuFragment : Fragment(), View.OnClickListener {
 
         setInsets()
         updatePauseUnpauseVisibility()
+        updateCheatToggleLabel()
 
         if (!requireActivity().packageManager.hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN)) {
             binding.menuOverlayControls.visibility = View.GONE
@@ -125,6 +126,7 @@ class MenuFragment : Fragment(), View.OnClickListener {
         // will block the load and send a message to the screen.
         binding.menuQuickload.paint.isStrikeThruText = hardcoreEnabled
         binding.menuEmulationLoadRoot.paint.isStrikeThruText = hardcoreEnabled
+        updateCheatToggleLabel()
     }
 
     override fun onDestroyView() {
@@ -155,7 +157,18 @@ class MenuFragment : Fragment(), View.OnClickListener {
             action == EmulationActivity.MENU_ACTION_UNPAUSE_EMULATION
         ) {
             updatePauseUnpauseVisibility()
+        } else if (action == EmulationActivity.MENU_ACTION_TOGGLE_CHEATS) {
+            updateCheatToggleLabel()
         }
+    }
+
+    private fun updateCheatToggleLabel() {
+        val text = if (BooleanSetting.MAIN_ENABLE_CHEATS.boolean) {
+            R.string.emulation_toggle_cheats_enabled
+        } else {
+            R.string.emulation_toggle_cheats_disabled
+        }
+        binding.menuToggleCheats.setText(text)
     }
 
     companion object {
@@ -175,6 +188,10 @@ class MenuFragment : Fragment(), View.OnClickListener {
             buttonsActionsMap.append(
                 R.id.menu_take_screenshot,
                 EmulationActivity.MENU_ACTION_TAKE_SCREENSHOT
+            )
+            buttonsActionsMap.append(
+                R.id.menu_toggle_cheats,
+                EmulationActivity.MENU_ACTION_TOGGLE_CHEATS
             )
             buttonsActionsMap.append(R.id.menu_quicksave, EmulationActivity.MENU_ACTION_QUICK_SAVE)
             buttonsActionsMap.append(R.id.menu_quickload, EmulationActivity.MENU_ACTION_QUICK_LOAD)

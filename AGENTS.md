@@ -23,6 +23,8 @@ Current product decisions from 2026-05-09:
 - Users should be able to choose the toggle speed/fast-forward percentage. Default target is 200%.
 - APK target for now is a debug build installed to the user's AYN Thor.
 - Cheats should be enabled by default.
+- Android in-game menu/OSD should expose a quick `Cheats: On/Off` toggle.
+- Android app branding should read `Dolphin Cheat Helper` for the fork; the debug APK label is `Dolphin Cheat Helper Debug`.
 - Optional AYN/Odin-style Android controller profiles should be available for GameCube, Wii Classic Controller, and Wii Remote + Nunchuk layouts.
 
 The repository remote should use SSH:
