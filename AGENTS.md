@@ -26,7 +26,7 @@ Current product decisions from 2026-05-09:
 - Android in-game menu/OSD should expose a quick `Cheats: On/Off` toggle.
 - Android app branding should read `Dolphin Cheat Helper` for the fork; the debug APK label is `Dolphin Cheat Helper Debug`.
 - Optional AYN/Odin-style Android controller profiles should be available for GameCube, Wii Classic Controller, and Wii Remote + Nunchuk layouts.
-- AYN Thor rumble is routed through Android's system vibrator (`Android/0/Device Sensors:Motor 0`). Android will ignore app rumble when the device-wide `vibrate_on` system setting is `0`, so check that setting when rumble appears dead.
+- AYN Thor rumble is routed through Android's system vibrator (`Android/0/Device Sensors:Motor 0`) as game/media vibration. Android will ignore app rumble when the device-wide `vibrate_on` system setting is `0`, but OS touch/keyboard haptics can stay disabled separately.
 
 The repository remote should use SSH:
 
@@ -153,7 +153,7 @@ Do not commit generated build outputs from `Source/Android/app/build`.
 - Verify the Select button still works normally when no hotkey combo is completed.
 - Verify the right stick still reaches the emulated controller outside the hotkey combo.
 - Verify speed toggle switches both ways and does not leave config in an unexpected state.
-- Verify rumble with Android system vibration enabled on the Thor; `adb shell settings get system vibrate_on` should return `1`.
+- Verify rumble with Android system vibration enabled on the Thor; `adb shell settings get system vibrate_on` should return `1`. To keep general OS haptics off, `adb shell settings get system haptic_feedback_enabled` and `adb shell settings get system keyboard_vibration_enabled` should return `0`.
 
 ## Remaining Questions Before Implementation
 

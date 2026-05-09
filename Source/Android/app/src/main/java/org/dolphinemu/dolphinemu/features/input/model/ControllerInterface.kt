@@ -208,7 +208,7 @@ object ControllerInterface {
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 val attributes = VibrationAttributes.Builder()
-                    .setUsage(VibrationAttributes.USAGE_PHYSICAL_EMULATION)
+                    .setUsage(VibrationAttributes.USAGE_MEDIA)
                     .build()
                 vibrator.vibrate(effect, attributes)
             } else {
