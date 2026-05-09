@@ -13,6 +13,16 @@ This fork is being prepared for Android-focused Dolphin work, with an AYN Thor h
 - Add a speed toggle hotkey.
 - Build an Android APK and install it to the AYN Thor over USB.
 
+Current product decisions from 2026-05-09:
+
+- Prefer bundling/downloading cheats for all supported games into the repo, along with covers if practical. Before committing third-party data, verify licensing, attribution, and repo-size impact.
+- Cheat badges should be small and visible on the mobile game grid and TV/Leanback cards.
+- Save/load defaults should be Android-editable hotkeys.
+- Initial save/load default: Select + right stick up/down, likely mapped to quick save/load unless changed.
+- Speed toggle default: Select + R.
+- Users should be able to choose the toggle speed/fast-forward percentage. Default target is 200%.
+- APK target for now is a debug build installed to the user's AYN Thor.
+
 The repository remote should use SSH:
 
 ```powershell
@@ -56,11 +66,11 @@ git remote set-url origin git@github.com:noeldvictor/dolphin.git
 
 ## Feature Guidance
 
-For cover cheat badges, keep the work lightweight. Avoid loading full cheat details on the UI thread for every game card if possible. Prefer a small availability provider/cache keyed by `gameId` plus `revision`, and update the mobile and TV card surfaces consistently. Decide whether "available" means local configured cheats only, downloaded Gecko availability, enabled cheats only, or any cheat/graphics-mod entry before implementing.
+For cover cheat badges, keep the work lightweight. Avoid loading full cheat details on the UI thread for every game card if possible. Prefer a small availability provider/cache keyed by `gameId` plus `revision`, and update the mobile and TV card surfaces consistently. If a bundled cheat index is added, derive badge state from that index plus any user-local cheats, not from synchronous per-card cheat parsing.
 
-For Android hotkeys, prefer a small `EmulationActivity` helper that sees key and motion events before they are passed to `ControllerInterface`. It should be edge-triggered and debounced so holding a combo does not spam savestates. It should only consume events when an exact hotkey combo fires; otherwise normal controller input should keep flowing to the emulator. The requested default mapping is expected to involve Select plus right stick up/down for save/load, but confirm the exact Android key/axis codes on the AYN Thor before hardcoding. Right-stick axes can vary by device.
+For Android hotkeys, prefer a small `EmulationActivity` helper that sees key and motion events before they are passed to `ControllerInterface`. It should be edge-triggered and debounced so holding a combo does not spam savestates. It should only consume events when an exact hotkey combo fires; otherwise normal controller input should keep flowing to the emulator. The requested default mapping is Select plus right stick up/down for save/load and Select + R for speed toggle, but confirm the exact Android key/axis codes on the AYN Thor before hardcoding. Right-stick axes can vary by device.
 
-For speed toggle, prefer toggling between normal speed (`FloatSetting.MAIN_EMULATION_SPEED = 1.0f`) and unlimited (`0.0f`) unless the user asks for a different alternate speed. Persisting the setting versus making it session-only is a product decision; ask before implementing. If changing runtime config directly, make sure the core sees the updated value and the Settings object is saved only when persistence is intended.
+For speed toggle, prefer toggling between normal speed (`FloatSetting.MAIN_EMULATION_SPEED = 1.0f`) and a user-configurable fast-forward percentage. Default fast-forward target is 200% (`2.0f`). If changing runtime config directly, make sure the core sees the updated value and the Settings object is saved only when persistence is intended.
 
 ## Build And Deploy
 
@@ -85,7 +95,19 @@ Environment notes from this workspace on 2026-05-09:
 - `adb` is available from the scrcpy WinGet package.
 - `adb devices -l` showed `c3ca0370 device product:kalama model:AYN_Thor device:kalama`.
 - Android SDK files exist under `%LOCALAPPDATA%\Android\Sdk`.
-- `java` was not on `PATH`; install or expose a JDK 17 before running Gradle.
+- Microsoft OpenJDK 17 was installed with `winget install --id Microsoft.OpenJDK.17 --exact`.
+- Machine `JAVA_HOME` is `C:\Program Files\Microsoft\jdk-17.0.19.10-hotspot\`.
+- User `ANDROID_HOME` and `ANDROID_SDK_ROOT` were set to `%LOCALAPPDATA%\Android\Sdk`.
+- The already-running Codex app may not see the new machine PATH until restart. For commands in the current session, prepend:
+
+```powershell
+$env:JAVA_HOME = ([Environment]::GetEnvironmentVariable('JAVA_HOME','Machine')).TrimEnd('\')
+$env:ANDROID_HOME = [Environment]::GetEnvironmentVariable('ANDROID_HOME','User')
+$env:ANDROID_SDK_ROOT = [Environment]::GetEnvironmentVariable('ANDROID_SDK_ROOT','User')
+$env:Path = "$env:JAVA_HOME\bin;$env:ANDROID_HOME\platform-tools;$env:Path"
+```
+
+- Verified `.\gradlew.bat help` succeeds when the environment is refreshed.
 - This clone was shallow and submodules were not initialized yet.
 
 Do not commit generated build outputs from `Source/Android/app/build`.
@@ -101,12 +123,8 @@ Do not commit generated build outputs from `Source/Android/app/build`.
 - Verify the right stick still reaches the emulated controller outside the hotkey combo.
 - Verify speed toggle switches both ways and does not leave config in an unexpected state.
 
-## Open Questions Before Implementation
+## Remaining Questions Before Implementation
 
-- Should the cheat badge mean any local cheat exists, any enabled cheat exists, or downloadable Gecko cheats exist?
-- What should the badge look like: small text label, icon-only chip, color, and position?
-- Are the hotkeys fixed defaults only, or should users be able to remap them in settings?
 - Which slot should Select + right stick up/down use: quick slot `9`, slot 1, or current/last selected slot?
-- What exact combo should toggle speed?
-- Should speed toggle be session-only or persist into Dolphin settings?
-- Should the Android APK be debug-only for personal testing, or do we need a signed release APK?
+- Should speed toggle be session-only during emulation, or should the selected fast-forward percentage persist into Dolphin settings?
+- What source should be used for bundled cheats and covers, and what licensing/attribution files are required?
