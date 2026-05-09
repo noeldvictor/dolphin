@@ -48,6 +48,7 @@
 #include "Core/HW/Wiimote.h"
 #include "Core/HW/WiimoteReal/WiimoteReal.h"
 #include "Core/Host.h"
+#include "Core/PatchEngine.h"
 #include "Core/PowerPC/JitInterface.h"
 #include "Core/PowerPC/PowerPC.h"
 #include "Core/State.h"
@@ -389,6 +390,15 @@ Java_org_dolphinemu_dolphinemu_NativeLibrary_SetEmulationSpeedLimit(JNIEnv*, jcl
     Config::SetCurrent(Config::MAIN_EMULATION_SPEED, sanitized_speed);
     Core::DisplayMessage(FormatSpeedLimitMessage(sanitized_speed), 2000);
   });
+}
+
+JNIEXPORT void JNICALL Java_org_dolphinemu_dolphinemu_NativeLibrary_ReloadCheats(JNIEnv*, jclass)
+{
+  auto& system = Core::System::GetInstance();
+  if (!Core::IsRunning(system))
+    return;
+
+  Core::RunOnCPUThread(system, [&system] { PatchEngine::Reload(system); });
 }
 
 JNIEXPORT jlong JNICALL
@@ -821,6 +831,18 @@ JNIEXPORT jstring JNICALL
 Java_org_dolphinemu_dolphinemu_NativeLibrary_GetCurrentGameIDUnchecked(JNIEnv* env, jclass)
 {
   return ToJString(env, SConfig::GetInstance().GetGameID());
+}
+
+JNIEXPORT jstring JNICALL
+Java_org_dolphinemu_dolphinemu_NativeLibrary_GetCurrentGameTdbIDUnchecked(JNIEnv* env, jclass)
+{
+  return ToJString(env, SConfig::GetInstance().GetGameTDBID());
+}
+
+JNIEXPORT jint JNICALL
+Java_org_dolphinemu_dolphinemu_NativeLibrary_GetCurrentRevisionUnchecked(JNIEnv*, jclass)
+{
+  return SConfig::GetInstance().GetRevision();
 }
 
 JNIEXPORT jstring JNICALL

@@ -58,9 +58,9 @@
                 android:text="@string/emulation_screenshot" />
 
             <Button
-                android:id="@+id/menu_toggle_cheats"
+                android:id="@+id/menu_manage_cheats"
                 style="@style/InGameMenuOption"
-                android:text="@string/emulation_toggle_cheats_enabled" />
+                android:text="@string/emulation_manage_cheats" />
 
             <Button
                 android:id="@+id/menu_quicksave"

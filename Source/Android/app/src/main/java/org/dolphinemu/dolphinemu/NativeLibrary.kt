@@ -270,6 +270,12 @@ object NativeLibrary {
     external fun SetEmulationSpeedLimit(speed: Float)
 
     /**
+     * Reloads the active patch, Action Replay, and Gecko code lists for the current game.
+     */
+    @JvmStatic
+    external fun ReloadCheats()
+
+    /**
      * Returns when the savestate in the given slot was created, or 0 if the slot is empty.
      */
     @JvmStatic
@@ -468,6 +474,18 @@ object NativeLibrary {
     }
 
     @JvmStatic
+    fun GetCurrentGameTdbID(): String {
+        checkGameMetadataValid()
+        return GetCurrentGameTdbIDUnchecked()
+    }
+
+    @JvmStatic
+    fun GetCurrentRevision(): Int {
+        checkGameMetadataValid()
+        return GetCurrentRevisionUnchecked()
+    }
+
+    @JvmStatic
     fun GetCurrentTitleDescription(): String {
         checkGameMetadataValid()
         return GetCurrentTitleDescriptionUnchecked()
@@ -601,6 +619,10 @@ object NativeLibrary {
     private external fun IsEmulatingWiiUnchecked(): Boolean
 
     private external fun GetCurrentGameIDUnchecked(): String
+
+    private external fun GetCurrentGameTdbIDUnchecked(): String
+
+    private external fun GetCurrentRevisionUnchecked(): Int
 
     private external fun GetCurrentTitleDescriptionUnchecked(): String
 }

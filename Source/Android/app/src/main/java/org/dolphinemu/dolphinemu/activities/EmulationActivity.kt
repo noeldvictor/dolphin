@@ -55,6 +55,7 @@ import org.dolphinemu.dolphinemu.features.skylanders.model.Skylander
 import org.dolphinemu.dolphinemu.features.skylanders.ui.SkylanderSlot
 import org.dolphinemu.dolphinemu.features.skylanders.ui.SkylanderSlotAdapter
 import org.dolphinemu.dolphinemu.fragments.EmulationFragment
+import org.dolphinemu.dolphinemu.fragments.InGameCheatMenuFragment
 import org.dolphinemu.dolphinemu.fragments.MenuFragment
 import org.dolphinemu.dolphinemu.fragments.SaveLoadStateFragment
 import org.dolphinemu.dolphinemu.fragments.SaveLoadStateFragment.SaveOrLoad
@@ -499,6 +500,7 @@ class EmulationActivity : AppCompatActivity(), ThemeProvider {
 
             MENU_ACTION_TAKE_SCREENSHOT -> NativeLibrary.SaveScreenShot()
             MENU_ACTION_TOGGLE_CHEATS -> toggleCheats()
+            MENU_ACTION_MANAGE_CHEATS -> showCheatSubMenu()
             MENU_ACTION_QUICK_SAVE -> NativeLibrary.SaveState(9)
             MENU_ACTION_QUICK_LOAD -> NativeLibrary.LoadState(9)
             MENU_ACTION_SAVE_ROOT -> showSubMenu(SaveOrLoad.SAVE)
@@ -1030,6 +1032,25 @@ class EmulationActivity : AppCompatActivity(), ThemeProvider {
             .commit()
     }
 
+    private fun showCheatSubMenu() {
+        supportFragmentManager.popBackStack(
+            BACKSTACK_NAME_SUBMENU,
+            FragmentManager.POP_BACK_STACK_INCLUSIVE
+        )
+
+        val fragment: Fragment = InGameCheatMenuFragment.newInstance()
+        supportFragmentManager.beginTransaction()
+            .setCustomAnimations(
+                R.animator.menu_slide_in_from_end,
+                R.animator.menu_slide_out_to_end,
+                R.animator.menu_slide_in_from_end,
+                R.animator.menu_slide_out_to_end
+            )
+            .replace(R.id.frame_submenu, fragment)
+            .addToBackStack(BACKSTACK_NAME_SUBMENU)
+            .commit()
+    }
+
     fun initInputPointer() {
         emulationFragment?.initInputPointer()
     }
@@ -1101,6 +1122,7 @@ class EmulationActivity : AppCompatActivity(), ThemeProvider {
         const val MENU_ACTION_INFINITY_BASE = 37
         const val MENU_ACTION_LATCHING_CONTROLS = 38
         const val MENU_ACTION_TOGGLE_CHEATS = 39
+        const val MENU_ACTION_MANAGE_CHEATS = 40
 
         init {
             buttonsActionsMap.apply {
