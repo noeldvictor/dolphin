@@ -14,9 +14,13 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.color.MaterialColors
 import com.google.android.material.divider.MaterialDivider
 import com.google.android.material.materialswitch.MaterialSwitch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.dolphinemu.dolphinemu.NativeLibrary
 import org.dolphinemu.dolphinemu.R
 import org.dolphinemu.dolphinemu.databinding.FragmentIngameCheatMenuBinding
@@ -62,8 +66,15 @@ class InGameCheatMenuFragment : Fragment() {
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        loadCheats()
-        renderCheats()
+        viewLifecycleOwner.lifecycleScope.launch {
+            withContext(Dispatchers.IO) {
+                loadCheats()
+            }
+
+            if (_binding != null) {
+                renderCheats()
+            }
+        }
     }
 
     override fun onDestroyView() {
@@ -72,6 +83,11 @@ class InGameCheatMenuFragment : Fragment() {
     }
 
     private fun loadCheats() {
+        graphicsMods.clear()
+        patchCheats.clear()
+        arCheats.clear()
+        geckoCheats.clear()
+
         graphicsModGroup = GraphicsModGroup.load(gameId)
         graphicsMods.addAll(graphicsModGroup!!.mods)
         patchCheats.addAll(PatchCheat.loadCodes(gameId, revision))
@@ -80,16 +96,10 @@ class InGameCheatMenuFragment : Fragment() {
 
         if (gameTdbId.isNotEmpty()) {
             BundledGeckoCodes.loadCodes(gameTdbId)?.let { bundledCodes ->
-                var addedCodes = false
                 for (cheat in bundledCodes) {
                     if (!geckoCheats.contains(cheat)) {
                         geckoCheats.add(cheat)
-                        addedCodes = true
                     }
-                }
-
-                if (addedCodes) {
-                    saveGeckoCheats()
                 }
             }
         }

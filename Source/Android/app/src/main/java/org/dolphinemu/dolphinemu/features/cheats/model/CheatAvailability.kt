@@ -20,7 +20,7 @@ object CheatAvailability {
 
         return withContext(Dispatchers.IO) {
             cache.getOrPut(cacheKey) {
-                hasLocalCodes(gameId, revision) || BundledGeckoCodes.hasCodes(gameTdbId)
+                BundledGeckoCodes.hasCodes(gameTdbId) || hasLocalCodes(gameId, revision)
             }
         }
     }
