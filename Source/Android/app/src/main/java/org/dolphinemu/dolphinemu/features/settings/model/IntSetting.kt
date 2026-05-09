@@ -74,13 +74,13 @@ enum class IntSetting(
         Settings.FILE_DOLPHIN,
         Settings.SECTION_INI_ANDROID,
         "HotkeySaveState",
-        1
+        2
     ),
     MAIN_HOTKEY_LOAD_STATE(
         Settings.FILE_DOLPHIN,
         Settings.SECTION_INI_ANDROID,
         "HotkeyLoadState",
-        2
+        1
     ),
     MAIN_HOTKEY_SPEED_TOGGLE(
         Settings.FILE_DOLPHIN,
