@@ -93,6 +93,7 @@ For bundled Gecko codes:
 - Generated cache path: `Data/Sys/GeckoCodes.zip`.
 - Keep source/provenance notes beside the zip in `Data/Sys/GeckoCodes.README.txt`.
 - The cheat UI should load bundled codes first and fall back to the network downloader only when the bundle has no entry.
+- Some GameCube games need default Action Replay INIs instead of bundled Gecko text. Example: Fire Emblem: Path of Radiance US `GFEE01` already has default AR codes, and PAL `GFEP01` is carried in `Data/Sys/GameSettings/GFEP01.ini` from GameHacking.org game 54385 because it is absent from the RC24 Gecko mirror.
 
 For covers, GameTDB region misses are common. Prefer trying the game's primary region first, then reasonable fallbacks such as `EN`, `US`, `JA`, and `KO` before falling back to the no-banner art.
 
