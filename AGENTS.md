@@ -26,6 +26,7 @@ Current product decisions from 2026-05-09:
 - Android in-game menu/OSD should expose a quick `Cheats: On/Off` toggle.
 - Android app branding should read `Dolphin Cheat Helper` for the fork; the debug APK label is `Dolphin Cheat Helper Debug`.
 - Optional AYN/Odin-style Android controller profiles should be available for GameCube, Wii Classic Controller, and Wii Remote + Nunchuk layouts.
+- AYN Thor rumble is routed through Android's system vibrator (`Android/0/Device Sensors:Motor 0`). Android will ignore app rumble when the device-wide `vibrate_on` system setting is `0`, so check that setting when rumble appears dead.
 
 The repository remote should use SSH:
 
@@ -66,6 +67,7 @@ git remote set-url origin git@github.com:noeldvictor/dolphin.git
 - Native input bridge:
   - `Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/features/input/model/ControllerInterface.kt`
   - `Source/Core/InputCommon/ControllerInterface/Android/Android.cpp`
+  - Android rumble/haptics also pass through these files plus `DolphinVibratorManager*.kt`.
 - Android-bundled controller profiles:
   - `Data/Sys/Profiles/GCPad/AYN Odin Android GameCube.ini`
   - `Data/Sys/Profiles/Wiimote/AYN Odin Android Classic Controller.ini`
@@ -151,6 +153,7 @@ Do not commit generated build outputs from `Source/Android/app/build`.
 - Verify the Select button still works normally when no hotkey combo is completed.
 - Verify the right stick still reaches the emulated controller outside the hotkey combo.
 - Verify speed toggle switches both ways and does not leave config in an unexpected state.
+- Verify rumble with Android system vibration enabled on the Thor; `adb shell settings get system vibrate_on` should return `1`.
 
 ## Remaining Questions Before Implementation
 

@@ -4,10 +4,12 @@ package org.dolphinemu.dolphinemu.features.input.model
 
 import android.content.Context
 import android.hardware.input.InputManager
+import android.media.AudioAttributes
 import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
+import android.os.VibrationAttributes
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -19,12 +21,20 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import org.dolphinemu.dolphinemu.DolphinApplication
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.math.roundToInt
 
 /**
  * This class interfaces with the native ControllerInterface,
  * which is where the emulator core gets inputs from.
  */
 object ControllerInterface {
+    private const val RUMBLE_OFF_THRESHOLD = 0.05f
+    private const val RUMBLE_SEGMENT_MS = 120L
+
+    private val rumbleAudioAttributes = AudioAttributes.Builder()
+        .setUsage(AudioAttributes.USAGE_GAME)
+        .build()
+
     private var inputDeviceListener: InputDeviceListener? = null
     private var handlerThread: HandlerThread? = null
 
@@ -179,11 +189,33 @@ object ControllerInterface {
 
     @Keep
     @JvmStatic
-    private fun vibrate(vibrator: Vibrator) {
+    private fun vibrate(vibrator: Vibrator, strength: Float) {
+        val clampedStrength = strength.coerceIn(0.0f, 1.0f)
+        if (!vibrator.hasVibrator() || clampedStrength < RUMBLE_OFF_THRESHOLD) {
+            vibrator.cancel()
+            return
+        }
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            vibrator.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE))
+            val amplitude = if (vibrator.hasAmplitudeControl()) {
+                (clampedStrength * 255).roundToInt().coerceIn(1, 255)
+            } else {
+                VibrationEffect.DEFAULT_AMPLITUDE
+            }
+            val effect = VibrationEffect.createWaveform(
+                longArrayOf(0L, RUMBLE_SEGMENT_MS), intArrayOf(0, amplitude), 1
+            )
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val attributes = VibrationAttributes.Builder()
+                    .setUsage(VibrationAttributes.USAGE_PHYSICAL_EMULATION)
+                    .build()
+                vibrator.vibrate(effect, attributes)
+            } else {
+                vibrator.vibrate(effect, rumbleAudioAttributes)
+            }
         } else {
-            vibrator.vibrate(100)
+            vibrator.vibrate(longArrayOf(0L, RUMBLE_SEGMENT_MS), 1)
         }
     }
 

@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cmath>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -90,6 +91,8 @@ constexpr Clock::duration ACTIVE_INPUT_TIMEOUT = std::chrono::milliseconds(1000)
 std::unordered_map<jint, ciface::Core::DeviceQualifier> s_device_id_to_device_qualifier;
 
 constexpr int MAX_KEYCODE = AKEYCODE_PROFILE_SWITCH;  // Up to date as of SDK 31
+constexpr ControlState RUMBLE_MINIMUM_STATE = 0.05;
+constexpr ControlState RUMBLE_STATE_UPDATE_EPSILON = 0.01;
 
 const std::array<std::string_view, MAX_KEYCODE + 1> KEYCODE_NAMES = {
     "Unknown",
@@ -589,19 +592,31 @@ public:
   {
   }
 
-  ~AndroidMotor() { IDCache::GetEnvForThread()->DeleteGlobalRef(m_vibrator); }
+  ~AndroidMotor()
+  {
+    JNIEnv* env = IDCache::GetEnvForThread();
+    env->CallStaticVoidMethod(s_controller_interface_class, s_controller_interface_vibrate, m_vibrator,
+                              static_cast<jfloat>(0.0f));
+    env->DeleteGlobalRef(m_vibrator);
+  }
 
   std::string GetName() const override { return "Motor " + std::to_string(m_id); }
 
   void SetState(ControlState state) override
   {
-    ControlState old_state = m_state.exchange(state, std::memory_order_relaxed);
+    const ControlState clamped_state = std::clamp(state, 0.0, 1.0);
+    const ControlState old_state = m_state.exchange(clamped_state, std::memory_order_relaxed);
 
-    if (old_state < 0.5 && state >= 0.5)
-    {
-      IDCache::GetEnvForThread()->CallStaticVoidMethod(s_controller_interface_class,
-                                                       s_controller_interface_vibrate, m_vibrator);
-    }
+    const bool was_active = old_state >= RUMBLE_MINIMUM_STATE;
+    const bool is_active = clamped_state >= RUMBLE_MINIMUM_STATE;
+
+    if (was_active == is_active &&
+        (!is_active || std::abs(old_state - clamped_state) < RUMBLE_STATE_UPDATE_EPSILON))
+      return;
+
+    IDCache::GetEnvForThread()->CallStaticVoidMethod(
+        s_controller_interface_class, s_controller_interface_vibrate, m_vibrator,
+        static_cast<jfloat>(is_active ? clamped_state : 0.0));
   }
 
 private:
@@ -786,20 +801,28 @@ private:
 
   void AddMotorsFromManager(JNIEnv* env, jobject vibrator_manager)
   {
+    if (!vibrator_manager)
+      return;
+
     jintArray j_vibrator_ids = reinterpret_cast<jintArray>(
         env->CallObjectMethod(vibrator_manager, s_dolphin_vibrator_manager_get_vibrator_ids));
+    if (!j_vibrator_ids)
+      return;
+
     jint* vibrator_ids = env->GetIntArrayElements(j_vibrator_ids, nullptr);
 
     jint size = env->GetArrayLength(j_vibrator_ids);
     for (jint i = 0; i < size; ++i)
     {
-      jobject vibrator =
-          env->CallObjectMethod(vibrator_manager, s_dolphin_vibrator_manager_get_vibrator, i);
-      AddOutput(new AndroidMotor(env, vibrator, i));
+      const jint vibrator_id = vibrator_ids[i];
+      jobject vibrator = env->CallObjectMethod(vibrator_manager,
+                                               s_dolphin_vibrator_manager_get_vibrator, vibrator_id);
+      if (vibrator)
+        AddOutput(new AndroidMotor(env, vibrator, vibrator_id));
       env->DeleteLocalRef(vibrator);
     }
 
-    env->ReleaseIntArrayElements(j_vibrator_ids, vibrator_ids, 0);
+    env->ReleaseIntArrayElements(j_vibrator_ids, vibrator_ids, JNI_ABORT);
     env->DeleteLocalRef(j_vibrator_ids);
   }
 
@@ -891,7 +914,7 @@ InputBackend::InputBackend(ControllerInterface* controller_interface)
       s_controller_interface_class, "getSystemVibratorManager",
       "()Lorg/dolphinemu/dolphinemu/features/input/model/DolphinVibratorManager;");
   s_controller_interface_vibrate =
-      env->GetStaticMethodID(s_controller_interface_class, "vibrate", "(Landroid/os/Vibrator;)V");
+      env->GetStaticMethodID(s_controller_interface_class, "vibrate", "(Landroid/os/Vibrator;F)V");
   env->DeleteLocalRef(controller_interface_class);
 
   const jclass sensor_event_listener_class =

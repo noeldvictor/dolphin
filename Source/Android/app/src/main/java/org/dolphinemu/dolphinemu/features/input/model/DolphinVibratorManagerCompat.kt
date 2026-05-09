@@ -14,7 +14,7 @@ class DolphinVibratorManagerCompat(vibrator: Vibrator) : DolphinVibratorManager 
     }
 
     override fun getVibrator(vibratorId: Int): Vibrator {
-        if (vibratorId > vibratorIds.size)
+        if (vibratorId !in vibratorIds)
             throw IndexOutOfBoundsException()
 
         return vibrator
