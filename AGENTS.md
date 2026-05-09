@@ -21,7 +21,7 @@ Current product decisions from 2026-05-09:
 - Initial save/load default: Select + right stick up/down, likely mapped to quick save/load unless changed.
 - Speed toggle default: Select + R.
 - Users should be able to choose the toggle speed/fast-forward percentage. Default target is 200%.
-- APK target for now is a debug build installed to the user's AYN Thor.
+- APK target going forward is a sideload-signed release build installed to the user's AYN Thor. Use debug builds only when actively chasing crashes or JNI/debugger issues.
 - Cheats should be enabled by default.
 - Android in-game menu/OSD should expose a quick `Cheats: On/Off` toggle.
 - Android app branding should read `Dolphin Cheat Helper` for the fork; the debug APK label is `Dolphin Cheat Helper Debug`.
@@ -110,11 +110,26 @@ Use the Android project from `Source/Android`.
 ```powershell
 git submodule update --init --recursive
 cd Source/Android
-.\gradlew.bat :app:assembleDebug
-adb install -r app\build\outputs\apk\debug\app-debug.apk
+.\gradlew.bat :app:assembleRelease `
+  -Pkeystore="$env:USERPROFILE\.android\debug.keystore" `
+  -Pstorepass=android `
+  -Pkeyalias=androiddebugkey `
+  -Pkeypass=android
+adb install -r app\build\outputs\apk\release\app-release.apk
 ```
 
-Or use Gradle's install task once the device is visible:
+The command above is a release build type signed with the local Android debug keystore for Thor sideloading. It is not a Play Store production signing key. Use Gradle's release install task once the device is visible:
+
+```powershell
+cd Source/Android
+.\gradlew.bat :app:installRelease `
+  -Pkeystore="$env:USERPROFILE\.android\debug.keystore" `
+  -Pstorepass=android `
+  -Pkeyalias=androiddebugkey `
+  -Pkeypass=android
+```
+
+Debug build fallback for crash/debug work:
 
 ```powershell
 cd Source/Android
@@ -146,8 +161,8 @@ Do not commit generated build outputs from `Source/Android/app/build`.
 ## Verification Checklist
 
 - Run Kotlin/Android formatting for edited Java/Kotlin files using the Dolphin code style from `Source/Android/code-style-java.xml`.
-- Build at least `:app:assembleDebug` before claiming the APK is ready.
-- Install to the AYN Thor with `adb install -r` or `:app:installDebug`.
+- Build at least `:app:assembleRelease` before claiming the APK is ready for daily Thor testing.
+- Install the release package to the AYN Thor with `adb install -r app\build\outputs\apk\release\app-release.apk` or `:app:installRelease`.
 - On device, verify mobile grid cover badges, TV/Leanback cards if relevant, and games with no cheats.
 - In game, verify save/load hotkeys do not fire repeatedly while held.
 - Verify the Select button still works normally when no hotkey combo is completed.
