@@ -24,7 +24,7 @@ enum class BooleanSetting(
         "SyncOnSkipIdle",
         true
     ),
-    MAIN_ENABLE_CHEATS(Settings.FILE_DOLPHIN, Settings.SECTION_INI_CORE, "EnableCheats", false),
+    MAIN_ENABLE_CHEATS(Settings.FILE_DOLPHIN, Settings.SECTION_INI_CORE, "EnableCheats", true),
     MAIN_OVERRIDE_REGION_SETTINGS(
         Settings.FILE_DOLPHIN,
         Settings.SECTION_INI_CORE,
