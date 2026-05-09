@@ -89,16 +89,51 @@ bool s_game_metadata_is_valid = false;
 
 constexpr float MIN_SPEED_LIMIT = 0.0f;
 constexpr float MAX_SPEED_LIMIT = 10.0f;
+constexpr float NORMAL_SPEED_EPSILON = 0.01f;
+
+bool s_fast_forward_pitch_override = false;
 
 float SanitizeSpeedLimit(float speed)
 {
   return std::isfinite(speed) ? std::clamp(speed, MIN_SPEED_LIMIT, MAX_SPEED_LIMIT) : 1.0f;
 }
 
+bool ShouldPreservePitchForSpeed(float speed)
+{
+  return speed > MIN_SPEED_LIMIT && std::abs(speed - 1.0f) >= NORMAL_SPEED_EPSILON;
+}
+
+void ApplyAutomaticPitchPreservation(float speed)
+{
+  if (ShouldPreservePitchForSpeed(speed))
+  {
+    if (!Config::Get(Config::MAIN_AUDIO_PRESERVE_PITCH))
+    {
+      Config::SetCurrent(Config::MAIN_AUDIO_PRESERVE_PITCH, true);
+      s_fast_forward_pitch_override = true;
+    }
+    return;
+  }
+
+  if (s_fast_forward_pitch_override &&
+      Config::GetActiveLayerForConfig(Config::MAIN_AUDIO_PRESERVE_PITCH) ==
+          Config::LayerType::CurrentRun)
+  {
+    Config::DeleteKey(Config::LayerType::CurrentRun, Config::MAIN_AUDIO_PRESERVE_PITCH);
+  }
+  s_fast_forward_pitch_override = false;
+}
+
 std::string FormatSpeedLimitMessage(float speed)
 {
   if (speed <= MIN_SPEED_LIMIT)
     return "Speed Limit: Unlimited";
+
+  if (ShouldPreservePitchForSpeed(speed))
+  {
+    return fmt::format("Speed Limit: {}% (Pitch Adjusted)",
+                       static_cast<int>(std::lround(speed * 100.0f)));
+  }
 
   return fmt::format("Speed Limit: {}%", static_cast<int>(std::lround(speed * 100.0f)));
 }
@@ -350,6 +385,7 @@ Java_org_dolphinemu_dolphinemu_NativeLibrary_SetEmulationSpeedLimit(JNIEnv*, jcl
 {
   const float sanitized_speed = SanitizeSpeedLimit(static_cast<float>(speed));
   Core::RunOnCPUThread(Core::System::GetInstance(), [sanitized_speed] {
+    ApplyAutomaticPitchPreservation(sanitized_speed);
     Config::SetCurrent(Config::MAIN_EMULATION_SPEED, sanitized_speed);
     Core::DisplayMessage(FormatSpeedLimitMessage(sanitized_speed), 2000);
   });
