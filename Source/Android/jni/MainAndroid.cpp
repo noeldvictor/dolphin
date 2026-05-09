@@ -1,6 +1,8 @@
 // Copyright 2003 Dolphin Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <algorithm>
+#include <cmath>
 #include <condition_variable>
 #include <cstdio>
 #include <cstdlib>
@@ -37,6 +39,7 @@
 #include "Core/Boot/Boot.h"
 #include "Core/BootManager.h"
 #include "Core/CommonTitles.h"
+#include "Core/Config/MainSettings.h"
 #include "Core/ConfigLoaders/GameConfigLoader.h"
 #include "Core/ConfigManager.h"
 #include "Core/Core.h"
@@ -83,6 +86,22 @@ bool s_need_nonblocking_alert_msg;
 
 Common::Flag s_is_booting;
 bool s_game_metadata_is_valid = false;
+
+constexpr float MIN_SPEED_LIMIT = 0.0f;
+constexpr float MAX_SPEED_LIMIT = 10.0f;
+
+float SanitizeSpeedLimit(float speed)
+{
+  return std::isfinite(speed) ? std::clamp(speed, MIN_SPEED_LIMIT, MAX_SPEED_LIMIT) : 1.0f;
+}
+
+std::string FormatSpeedLimitMessage(float speed)
+{
+  if (speed <= MIN_SPEED_LIMIT)
+    return "Speed Limit: Unlimited";
+
+  return fmt::format("Speed Limit: {}%", static_cast<int>(std::lround(speed * 100.0f)));
+}
 }  // Anonymous namespace
 
 void UpdatePointer()
@@ -324,6 +343,16 @@ JNIEXPORT void JNICALL Java_org_dolphinemu_dolphinemu_NativeLibrary_LoadStateAs(
                                                                                 jstring path)
 {
   State::LoadAs(Core::System::GetInstance(), GetJString(env, path));
+}
+
+JNIEXPORT void JNICALL
+Java_org_dolphinemu_dolphinemu_NativeLibrary_SetEmulationSpeedLimit(JNIEnv*, jclass, jfloat speed)
+{
+  const float sanitized_speed = SanitizeSpeedLimit(static_cast<float>(speed));
+  Core::RunOnCPUThread(Core::System::GetInstance(), [sanitized_speed] {
+    Config::SetCurrent(Config::MAIN_EMULATION_SPEED, sanitized_speed);
+    Core::DisplayMessage(FormatSpeedLimitMessage(sanitized_speed), 2000);
+  });
 }
 
 JNIEXPORT jlong JNICALL

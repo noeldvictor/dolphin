@@ -262,6 +262,14 @@ object NativeLibrary {
     external fun LoadStateAs(path: String)
 
     /**
+     * Sets the current emulation speed limit.
+     *
+     * @param speed The speed multiplier, where 1.0 is normal speed.
+     */
+    @JvmStatic
+    external fun SetEmulationSpeedLimit(speed: Float)
+
+    /**
      * Returns when the savestate in the given slot was created, or 0 if the slot is empty.
      */
     @JvmStatic

@@ -10,7 +10,6 @@ import org.dolphinemu.dolphinemu.R
 import org.dolphinemu.dolphinemu.features.settings.model.BooleanSetting
 import org.dolphinemu.dolphinemu.features.settings.model.FloatSetting
 import org.dolphinemu.dolphinemu.features.settings.model.IntSetting
-import org.dolphinemu.dolphinemu.features.settings.model.NativeConfig
 import kotlin.math.abs
 
 class AndroidHotkeyManager {
@@ -119,10 +118,13 @@ class AndroidHotkeyManager {
 
     private fun toggleSpeed() {
         val currentSpeed = FloatSetting.MAIN_EMULATION_SPEED.float
-        val fastForwardSpeed = FloatSetting.MAIN_HOTKEY_FAST_FORWARD_SPEED.float.coerceAtLeast(1.0f)
-        val nextSpeed = if (abs(currentSpeed - 1.0f) < SPEED_EPSILON) fastForwardSpeed else 1.0f
+        val fastForwardSpeed = sanitizeFastForwardSpeed(
+            FloatSetting.MAIN_HOTKEY_FAST_FORWARD_SPEED.float
+        )
+        val isNormalSpeed = currentSpeed.isFinite() && abs(currentSpeed - 1.0f) < SPEED_EPSILON
+        val nextSpeed = if (isNormalSpeed) fastForwardSpeed else 1.0f
 
-        FloatSetting.MAIN_EMULATION_SPEED.setFloat(NativeConfig.LAYER_CURRENT, nextSpeed)
+        NativeLibrary.SetEmulationSpeedLimit(nextSpeed)
 
         if (abs(nextSpeed - 1.0f) < SPEED_EPSILON) {
             showToast(R.string.hotkey_speed_normal)
@@ -130,6 +132,13 @@ class AndroidHotkeyManager {
             showToast(R.string.hotkey_speed_fast, (nextSpeed * 100).toInt())
         }
     }
+
+    private fun sanitizeFastForwardSpeed(speed: Float): Float =
+        if (speed.isFinite()) {
+            speed.coerceIn(MIN_FAST_FORWARD_SPEED, MAX_FAST_FORWARD_SPEED)
+        } else {
+            DEFAULT_FAST_FORWARD_SPEED
+        }
 
     private fun showToast(messageId: Int, vararg args: Any) {
         NativeLibrary.getEmulationActivity()?.let {
@@ -182,5 +191,8 @@ class AndroidHotkeyManager {
         private const val QUICK_SAVE_SLOT = 9
         private const val RIGHT_STICK_THRESHOLD = 0.65f
         private const val SPEED_EPSILON = 0.01f
+        private const val MIN_FAST_FORWARD_SPEED = 1.0f
+        private const val DEFAULT_FAST_FORWARD_SPEED = 2.0f
+        private const val MAX_FAST_FORWARD_SPEED = 10.0f
     }
 }
