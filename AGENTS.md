@@ -29,6 +29,14 @@ The repository remote should use SSH:
 git remote set-url origin git@github.com:noeldvictor/dolphin.git
 ```
 
+## Git Workflow
+
+- Work directly on the repository's primary branch unless the user explicitly asks for a separate branch.
+- This fork's current primary branch is `master` (`origin/HEAD -> origin/master`). The user may casually call it "main"; treat that as the primary branch, not as permission to create a new `main` branch.
+- Commit and push directly to the primary branch when changes are ready.
+- Do not create `codex/` feature branches for this project unless the user specifically requests one.
+- If an accidental feature branch is created, move the commits to the primary branch, push there, then delete the extra branch locally and remotely.
+
 ## Android Touch Points
 
 - Android project: `Source/Android`
