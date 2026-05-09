@@ -28,6 +28,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.dolphinemu.dolphinemu.R
 import org.dolphinemu.dolphinemu.databinding.ActivityCheatsBinding
+import org.dolphinemu.dolphinemu.features.cheats.model.BundledGeckoCodes
 import org.dolphinemu.dolphinemu.features.cheats.model.Cheat
 import org.dolphinemu.dolphinemu.features.cheats.model.CheatAvailability
 import org.dolphinemu.dolphinemu.features.cheats.model.CheatsViewModel
@@ -174,7 +175,7 @@ class CheatsActivity : AppCompatActivity(), PanelSlideListener {
 
         lifecycleScope.launch {
             withContext(Dispatchers.IO) {
-                val codes = downloadCodes(gameTdbId!!)
+                val codes = BundledGeckoCodes.loadCodes(gameTdbId!!) ?: downloadCodes(gameTdbId!!)
                 withContext(Dispatchers.Main) {
                     progressDialog.dismiss()
                     if (codes == null) {

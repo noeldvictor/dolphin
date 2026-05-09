@@ -1,0 +1,10 @@
+Bundled Gecko code cache for this Android fork.
+
+Source: https://codes.rc24.xyz/txt.php?txt=<GameTDBID>
+Upstream provenance: the RC24 mirror homepage states that all codes come from GameHacking.org.
+Game ID seed list: Sys/wiitdb-en.txt.
+
+Generated entries: 1658
+Generated UTC: 2026-05-09T16:50:57Z
+
+Regenerate with Tools/update_gecko_code_cache.py.

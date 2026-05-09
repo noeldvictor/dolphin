@@ -15,13 +15,15 @@ This fork is being prepared for Android-focused Dolphin work, with an AYN Thor h
 
 Current product decisions from 2026-05-09:
 
-- Prefer bundling/downloading cheats for all supported games into the repo, along with covers if practical. Before committing third-party data, verify licensing, attribution, and repo-size impact.
+- Prefer bundling/downloading cheats for all supported games into the repo, along with covers if practical. The Android fork currently carries a bundled Gecko-code cache generated from the RC24/GameHacking mirror, with source notes in `Data/Sys/GeckoCodes.README.txt`.
 - Cheat badges should be small and visible on the mobile game grid and TV/Leanback cards.
 - Save/load defaults should be Android-editable hotkeys.
 - Initial save/load default: Select + right stick up/down, likely mapped to quick save/load unless changed.
 - Speed toggle default: Select + R.
 - Users should be able to choose the toggle speed/fast-forward percentage. Default target is 200%.
 - APK target for now is a debug build installed to the user's AYN Thor.
+- Cheats should be enabled by default.
+- Optional AYN/Odin-style Android controller profiles should be available for GameCube, Wii Classic Controller, and Wii Remote + Nunchuk layouts.
 
 The repository remote should use SSH:
 
@@ -62,6 +64,11 @@ git remote set-url origin git@github.com:noeldvictor/dolphin.git
 - Native input bridge:
   - `Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/features/input/model/ControllerInterface.kt`
   - `Source/Core/InputCommon/ControllerInterface/Android/Android.cpp`
+- Android-bundled controller profiles:
+  - `Data/Sys/Profiles/GCPad/AYN Odin Android GameCube.ini`
+  - `Data/Sys/Profiles/Wiimote/AYN Odin Android Classic Controller.ini`
+  - `Data/Sys/Profiles/Wiimote/AYN Odin Android Nunchuk.ini`
+  - Android build configuration copies `Data/Sys` into the ignored/generated `Source/Android/app/src/main/assets/Sys` folder.
 - Savestate entry points:
   - Kotlin: `NativeLibrary.SaveState(slot)` and `NativeLibrary.LoadState(slot)`
   - JNI: `Source/Android/jni/MainAndroid.cpp`
@@ -74,7 +81,18 @@ git remote set-url origin git@github.com:noeldvictor/dolphin.git
 
 ## Feature Guidance
 
-For cover cheat badges, keep the work lightweight. Avoid loading full cheat details on the UI thread for every game card if possible. Prefer a small availability provider/cache keyed by `gameId` plus `revision`, and update the mobile and TV card surfaces consistently. If a bundled cheat index is added, derive badge state from that index plus any user-local cheats, not from synchronous per-card cheat parsing.
+For cover cheat badges, keep the work lightweight. Avoid loading full cheat details on the UI thread for every game card if possible. Prefer a small availability provider/cache keyed by `gameId` plus `revision`, and update the mobile and TV card surfaces consistently. Badge state should come from user-local cheats plus the bundled Gecko cache; do not do synchronous per-card network checks.
+
+For bundled Gecko codes:
+
+- `https://codes.rc24.xyz/gecko.db` is not a real database artifact; it returns the mirror homepage.
+- Use `https://codes.rc24.xyz/txt.php?txt=<GameTDBID>` for per-game Gecko text files. The RC24 homepage states those codes come from GameHacking.org.
+- Regenerate the Android cache with `python Tools/update_gecko_code_cache.py`.
+- Generated cache path: `Data/Sys/GeckoCodes.zip`.
+- Keep source/provenance notes beside the zip in `Data/Sys/GeckoCodes.README.txt`.
+- The cheat UI should load bundled codes first and fall back to the network downloader only when the bundle has no entry.
+
+For covers, GameTDB region misses are common. Prefer trying the game's primary region first, then reasonable fallbacks such as `EN`, `US`, `JA`, and `KO` before falling back to the no-banner art.
 
 For Android hotkeys, prefer a small `EmulationActivity` helper that sees key and motion events before they are passed to `ControllerInterface`. It should be edge-triggered and debounced so holding a combo does not spam savestates. It should only consume events when an exact hotkey combo fires; otherwise normal controller input should keep flowing to the emulator. The requested default mapping is Select plus right stick up/down for save/load and Select + R for speed toggle, but confirm the exact Android key/axis codes on the AYN Thor before hardcoding. Right-stick axes can vary by device.
 
@@ -133,6 +151,5 @@ Do not commit generated build outputs from `Source/Android/app/build`.
 
 ## Remaining Questions Before Implementation
 
-- Which slot should Select + right stick up/down use: quick slot `9`, slot 1, or current/last selected slot?
-- Should speed toggle be session-only during emulation, or should the selected fast-forward percentage persist into Dolphin settings?
-- What source should be used for bundled cheats and covers, and what licensing/attribution files are required?
+- If AYN Thor/Odin axis names differ from generic Android `Axis 0/1/11/14/17/18`, confirm with the input mapper and update the bundled profiles.
+- Decide later whether to add a user-facing "refresh bundled cheat cache" workflow, or keep regeneration as a repo/build-time script.

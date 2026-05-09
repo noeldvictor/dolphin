@@ -33,17 +33,25 @@ class GameCoverFetcher(
         val customCoverUri = CoilUtils.findCustomCover(game)
         val builder = ImageRequest.Builder(DolphinApplication.getAppContext())
         var dataSource = DataSource.DISK
-        val drawable: Drawable? = if (customCoverUri != null) {
-            val request = builder.data(customCoverUri).error(R.drawable.no_banner).build()
-            DolphinApplication.getAppContext().imageLoader.executeBlocking(request).drawable
-        } else if (BooleanSetting.MAIN_USE_GAME_COVERS.boolean) {
-            val request = builder.data(
-                CoverHelper.buildGameTDBUrl(game, CoverHelper.getRegion(game))
-            ).error(R.drawable.no_banner).build()
+        val drawable: Drawable? = when {
+            customCoverUri != null -> {
+                val request = builder.data(customCoverUri).build()
+                DolphinApplication.getAppContext().imageLoader.executeBlocking(request).drawable
+            }
+
+            BooleanSetting.MAIN_USE_GAME_COVERS.boolean -> {
+                dataSource = DataSource.NETWORK
+                CoverHelper.buildGameTDBUrls(game).firstNotNullOfOrNull { url ->
+                    val request = builder.data(url).build()
+                    DolphinApplication.getAppContext().imageLoader.executeBlocking(request).drawable
+                }
+            }
+
+            else -> null
+        }
+
+        if (drawable != null && customCoverUri == null) {
             dataSource = DataSource.NETWORK
-            DolphinApplication.getAppContext().imageLoader.executeBlocking(request).drawable
-        } else {
-            null
         }
 
         return DrawableResult(

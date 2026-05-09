@@ -13,19 +13,20 @@ object CheatAvailability {
     suspend fun hasCheats(gameFile: GameFile): Boolean {
         val gameId = gameFile.getGameId()
         val revision = gameFile.getRevision()
-        val cacheKey = "$gameId:$revision"
+        val gameTdbId = gameFile.getGameTdbId()
+        val cacheKey = "$gameId:$revision:$gameTdbId"
 
         cache[cacheKey]?.let { return it }
 
         return withContext(Dispatchers.IO) {
             cache.getOrPut(cacheKey) {
-                hasLocalCodes(gameId, revision)
+                hasLocalCodes(gameId, revision) || BundledGeckoCodes.hasCodes(gameTdbId)
             }
         }
     }
 
     fun invalidate(gameId: String, revision: Int) {
-        cache.remove("$gameId:$revision")
+        cache.keys.removeIf { it.startsWith("$gameId:$revision:") }
     }
 
     @JvmStatic

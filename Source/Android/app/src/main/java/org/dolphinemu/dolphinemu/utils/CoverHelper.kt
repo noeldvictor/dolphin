@@ -12,6 +12,10 @@ object CoverHelper {
     }
 
     @JvmStatic
+    fun buildGameTDBUrls(game: GameFile): List<String> =
+        getRegions(game).map { region -> buildGameTDBUrl(game, region) }
+
+    @JvmStatic
     fun getRegion(game: GameFile): String {
         val region: String = when (game.getRegion()) {
             GameFile.REGION_NTSC_J -> "JA"
@@ -32,5 +36,11 @@ object CoverHelper {
             else -> "EN"
         }
         return region
+    }
+
+    private fun getRegions(game: GameFile): List<String> {
+        val primaryRegion = getRegion(game)
+        val fallbackRegions = listOf("EN", "US", "JA", "KO")
+        return (listOf(primaryRegion) + fallbackRegions).distinct()
     }
 }
