@@ -136,7 +136,7 @@ enum class BooleanSetting(
         Settings.FILE_DOLPHIN,
         Settings.SECTION_INI_CORE,
         "EnableSaveStates",
-        false
+        true
     ),
     MAIN_WII_WIILINK_ENABLE(Settings.FILE_DOLPHIN, Settings.SECTION_INI_CORE, "EnableWiiLink", false),
     MAIN_DSP_JIT(Settings.FILE_DOLPHIN, Settings.SECTION_INI_DSP, "EnableJIT", true),

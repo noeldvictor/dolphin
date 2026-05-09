@@ -142,7 +142,8 @@ class AndroidHotkeyManager {
 
     private fun showToast(messageId: Int, vararg args: Any) {
         NativeLibrary.getEmulationActivity()?.let {
-            Toast.makeText(it, it.getString(messageId, *args), Toast.LENGTH_SHORT).show()
+            val message = if (args.isEmpty()) it.getString(messageId) else it.getString(messageId, *args)
+            Toast.makeText(it, message, Toast.LENGTH_SHORT).show()
         }
     }
 
