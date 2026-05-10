@@ -31,6 +31,7 @@ import org.dolphinemu.dolphinemu.R
 import org.dolphinemu.dolphinemu.databinding.FragmentSettingsBinding
 import org.dolphinemu.dolphinemu.features.settings.model.Settings
 import org.dolphinemu.dolphinemu.features.settings.model.view.SettingsItem
+import org.dolphinemu.dolphinemu.utils.DownloadableGpuDriver
 import org.dolphinemu.dolphinemu.utils.GpuDriverInstallResult
 import org.dolphinemu.dolphinemu.utils.SerializableHelper.serializable
 import java.util.*
@@ -201,18 +202,81 @@ class SettingsFragment : Fragment(), SettingsFragmentView {
         if (presenter.gpuDriver == null) {
             return
         }
-        val msg = "${presenter.gpuDriver!!.name} ${presenter.gpuDriver!!.driverVersion}"
+
+        val currentDriver = "${presenter.gpuDriver!!.name} ${presenter.gpuDriver!!.driverVersion}"
+        val actions = arrayOf(
+            getString(R.string.gpu_driver_dialog_get_turnip),
+            getString(R.string.gpu_driver_dialog_install),
+            getString(R.string.gpu_driver_dialog_system)
+        )
 
         MaterialAlertDialogBuilder(requireContext())
             .setTitle(getString(R.string.gpu_driver_dialog_title))
-            .setMessage(msg)
-            .setNegativeButton(android.R.string.cancel, null)
-            .setNeutralButton(R.string.gpu_driver_dialog_system) { _: DialogInterface?, _: Int ->
-                presenter.useSystemDriver()
+            .setMessage(getString(R.string.gpu_driver_dialog_message, currentDriver))
+            .setItems(actions) { _: DialogInterface?, which: Int ->
+                when (which) {
+                    0 -> {
+                        showSnackbar(R.string.gpu_driver_github_fetching)
+                        presenter.fetchTurnipDrivers()
+                    }
+                    1 -> askForDriverFile()
+                    2 -> presenter.useSystemDriver()
+                }
             }
-            .setPositiveButton(R.string.gpu_driver_dialog_install) { _: DialogInterface?, _: Int ->
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    override fun showTurnipDriverPicker(drivers: List<DownloadableGpuDriver>) {
+        if (drivers.isEmpty()) {
+            showSnackbar(R.string.gpu_driver_github_no_turnip)
+            return
+        }
+
+        val labels = drivers.map { driver ->
+            val labelRes = if (driver.recommended) {
+                R.string.gpu_driver_turnip_recommended_item
+            } else {
+                R.string.gpu_driver_turnip_item
+            }
+            getString(labelRes, driver.assetName, driver.releaseName, driver.sizeLabel)
+        }.toTypedArray()
+
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.gpu_driver_turnip_picker_title)
+            .setMessage(R.string.gpu_driver_turnip_picker_message)
+            .setItems(labels) { _: DialogInterface?, which: Int ->
+                confirmTurnipDriverInstall(drivers[which])
+            }
+            .setNeutralButton(R.string.gpu_driver_dialog_install) { _: DialogInterface?, _: Int ->
                 askForDriverFile()
             }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun confirmTurnipDriverInstall(driver: DownloadableGpuDriver) {
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(
+                if (driver.recommended) {
+                    getString(R.string.gpu_driver_turnip_confirm_title_recommended)
+                } else {
+                    driver.assetName
+                }
+            )
+            .setMessage(
+                getString(
+                    R.string.gpu_driver_turnip_confirm_message,
+                    driver.assetName,
+                    driver.releaseName,
+                    driver.sizeLabel
+                )
+            )
+            .setPositiveButton(R.string.gpu_driver_turnip_download_install) { _: DialogInterface?, _: Int ->
+                showSnackbar(R.string.gpu_driver_github_downloading)
+                presenter.downloadAndInstallDriver(driver)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
             .show()
     }
 
@@ -229,10 +293,7 @@ class SettingsFragment : Fragment(), SettingsFragmentView {
     }
 
     override fun onDriverInstallDone(result: GpuDriverInstallResult) {
-        val view = binding?.root ?: return
-        Snackbar
-            .make(view, resolveInstallResultString(result), Snackbar.LENGTH_LONG)
-            .show()
+        showSnackbar(resolveInstallResultString(result))
     }
 
     override fun onDriverUninstallDone() {
@@ -251,6 +312,20 @@ class SettingsFragment : Fragment(), SettingsFragmentView {
         GpuDriverInstallResult.UnsupportedAndroidVersion -> getString(R.string.gpu_driver_install_unsupported_android_version)
         GpuDriverInstallResult.AlreadyInstalled -> getString(R.string.gpu_driver_install_already_installed)
         GpuDriverInstallResult.FileNotFound -> getString(R.string.gpu_driver_install_file_not_found)
+        GpuDriverInstallResult.NetworkError -> getString(R.string.gpu_driver_install_network_error)
+        GpuDriverInstallResult.NoTurnipDriverFound -> getString(R.string.gpu_driver_github_no_turnip)
+        GpuDriverInstallResult.DownloadFailed -> getString(R.string.gpu_driver_download_failed)
+    }
+
+    private fun showSnackbar(messageRes: Int) {
+        showSnackbar(getString(messageRes))
+    }
+
+    private fun showSnackbar(message: String) {
+        val view = binding?.root ?: return
+        Snackbar
+            .make(view, message, Snackbar.LENGTH_LONG)
+            .show()
     }
 
     companion object {

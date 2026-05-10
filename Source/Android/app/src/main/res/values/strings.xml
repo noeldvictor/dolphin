@@ -943,8 +943,10 @@ It can efficiently compress both junk data and encrypted Wii data.
 
     <!-- Custom GPU drivers -->
     <string name="gpu_driver_dialog_title">Select the GPU driver for Dolphin</string>
+    <string name="gpu_driver_dialog_message">Current: %1$s\n\nRecommended: newest standard Turnip ZIP from K11MCH1/AdrenoToolsDrivers. A8xx, GMEM, and Sysmem builds are listed too for manual testing.</string>
     <string name="gpu_driver_dialog_system">Default</string>
     <string name="gpu_driver_dialog_install">Install driver</string>
+    <string name="gpu_driver_dialog_get_turnip">Get Turnip from GitHub</string>
     <string name="gpu_driver_dialog_uninstall_done">Successfully switched to the system driver</string>
     <string name="gpu_driver_submenu">GPU Driver</string>
     <string name="gpu_driver_install_inprogress">Installing the GPU driver…</string>
@@ -955,6 +957,18 @@ It can efficiently compress both junk data and encrypted Wii data.
     <string name="gpu_driver_install_unsupported_android_version">Your device doesn\'t meet the minimum Android version requirements for the supplied driver.</string>
     <string name="gpu_driver_install_already_installed">The supplied driver package is already installed.</string>
     <string name="gpu_driver_install_file_not_found">The selected file could not be found or accessed.</string>
+    <string name="gpu_driver_install_network_error">Could not load the GitHub Turnip driver list.</string>
+    <string name="gpu_driver_download_failed">Could not download the selected GPU driver.</string>
+    <string name="gpu_driver_github_fetching">Loading Turnip drivers from GitHub…</string>
+    <string name="gpu_driver_github_downloading">Downloading and installing GPU driver…</string>
+    <string name="gpu_driver_github_no_turnip">No Turnip driver ZIPs were found in the GitHub release list.</string>
+    <string name="gpu_driver_turnip_picker_title">GitHub Turnip drivers</string>
+    <string name="gpu_driver_turnip_picker_message">The recommended item is the newest standard Turnip ZIP. Pick another package if you want to test a specific variant.</string>
+    <string name="gpu_driver_turnip_recommended_item">%1$s\nRecommended • %2$s • %3$s</string>
+    <string name="gpu_driver_turnip_item">%1$s\n%2$s • %3$s</string>
+    <string name="gpu_driver_turnip_confirm_title_recommended">Install recommended Turnip</string>
+    <string name="gpu_driver_turnip_confirm_message">Install %1$s from %2$s?\n\nSize: %3$s\n\nThis replaces the currently installed custom GPU driver.</string>
+    <string name="gpu_driver_turnip_download_install">Download and install</string>
 
     <!-- Emulated USB Devices -->
     <string name="emulated_usb_devices">Emulated USB Devices</string>

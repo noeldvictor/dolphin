@@ -2837,7 +2837,56 @@ class SettingsFragmentPresenter(
                 return@launch
             }
 
-            val result = GpuDriverHelper.installDriver(stream)
+            val result = stream.use { GpuDriverHelper.installDriver(it) }
+            withContext(Dispatchers.Main) {
+                with(this@SettingsFragmentPresenter) {
+                    this.gpuDriver = GpuDriverHelper.getInstalledDriverMetadata()
+                        ?: GpuDriverHelper.getSystemDriverMetadata(context) ?: return@withContext
+                    this.libNameSetting.setString(this.settings!!, this.gpuDriver!!.libraryName)
+                }
+                fragmentView.onDriverInstallDone(result)
+            }
+        }
+    }
+
+    fun fetchTurnipDrivers() {
+        CoroutineScope(Dispatchers.IO).launch {
+            val drivers = try {
+                GpuDriverDownloadHelper.fetchTurnipDrivers()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    fragmentView.onDriverInstallDone(GpuDriverInstallResult.NetworkError)
+                }
+                return@launch
+            }
+
+            withContext(Dispatchers.Main) {
+                if (drivers.isEmpty()) {
+                    fragmentView.onDriverInstallDone(GpuDriverInstallResult.NoTurnipDriverFound)
+                } else {
+                    fragmentView.showTurnipDriverPicker(drivers)
+                }
+            }
+        }
+    }
+
+    fun downloadAndInstallDriver(driver: DownloadableGpuDriver) {
+        val context = this.context.applicationContext
+        CoroutineScope(Dispatchers.IO).launch {
+            val downloadedDriver = try {
+                GpuDriverDownloadHelper.downloadDriver(context, driver)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    fragmentView.onDriverInstallDone(GpuDriverInstallResult.DownloadFailed)
+                }
+                return@launch
+            }
+
+            val result = downloadedDriver.inputStream().use { GpuDriverHelper.installDriver(it) }
+            downloadedDriver.delete()
+
             withContext(Dispatchers.Main) {
                 with(this@SettingsFragmentPresenter) {
                     this.gpuDriver = GpuDriverHelper.getInstalledDriverMetadata()

@@ -144,5 +144,8 @@ enum class GpuDriverInstallResult {
     InvalidMetadata,
     UnsupportedAndroidVersion,
     AlreadyInstalled,
-    FileNotFound
+    FileNotFound,
+    NetworkError,
+    NoTurnipDriverFound,
+    DownloadFailed
 }

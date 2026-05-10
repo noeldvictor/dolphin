@@ -41,6 +41,7 @@ This fork intentionally diverges from a plain Dolphin Android build in several p
 - Fast-forward uses a user-configurable percentage with a 200% default and preserves audio pitch.
 - Optional AYN/Odin-style controller profiles are included for GameCube, Wii Classic Controller, and Wii Remote + Nunchuk layouts.
 - AYN Thor rumble is routed through Android game/media vibration instead of pretending every Android haptic path behaves the same.
+- The Android GPU Driver menu can fetch Turnip driver ZIPs from GitHub, mark the newest standard Turnip package as recommended, and still let you pick a variant or local ZIP.
 - Release builds are the normal Thor testing path because debug builds can be much slower.
 
 ## Cheat Notes
