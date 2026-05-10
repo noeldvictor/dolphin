@@ -6,14 +6,14 @@ These instructions apply to the whole repository.
 
 ## Project Brief
 
-This fork is being prepared for Android-focused Dolphin work, with an AYN Thor handheld as the main target test device. The immediate feature goals are:
+This fork is an Android-focused Dolphin experiment for the AYN Thor handheld. Public-facing branding is now `Dolphin Thor Experiment`, matching the renamed fork at `git@github.com:noeldvictor/dolphin-thor-experiment.git`. The immediate feature goals are:
 
 - Show a visible badge on game covers when cheats are available for that game.
 - Add an Android hotkey layer for easy savestate actions from the built-in/controller inputs.
 - Add a speed toggle hotkey.
 - Build an Android APK and install it to the AYN Thor over USB.
 
-Current product decisions from 2026-05-09:
+Current product decisions from 2026-05-10:
 
 - Prefer bundling/downloading cheats for all supported games into the repo, along with covers if practical. The Android fork currently carries a bundled Gecko-code cache generated from the RC24/GameHacking mirror, with source notes in `Data/Sys/GeckoCodes.README.txt`.
 - Cheat badges should be small and visible on the mobile game grid and TV/Leanback cards.
@@ -24,14 +24,16 @@ Current product decisions from 2026-05-09:
 - APK target going forward is a sideload-signed release build installed to the user's AYN Thor. Use debug builds only when actively chasing crashes or JNI/debugger issues.
 - Cheats should be enabled by default.
 - Android in-game menu/OSD should expose a quick `Cheats: On/Off` toggle.
-- Android app branding should read `Dolphin Cheat Helper` for the fork; the debug APK label is `Dolphin Cheat Helper Debug`.
+- Android app branding should read `Dolphin Thor Experiment` for the fork; the debug APK label is `Dolphin Thor Experiment Debug`.
+- Public README tone should be clear and blunt: this is a personal-use AI/vibe-coded experiment, no stability guarantees, no support queue, and people should fork it if they want different behavior. Do not mention APK downloads in `Readme.md`.
+- Project art lives in `docs/assets/`; README screenshots live in `docs/screenshots/`.
 - Optional AYN/Odin-style Android controller profiles should be available for GameCube, Wii Classic Controller, and Wii Remote + Nunchuk layouts.
 - AYN Thor rumble is routed through Android's system vibrator (`Android/0/Device Sensors:Motor 0`) as game/media vibration. Android will ignore app rumble when the device-wide `vibrate_on` system setting is `0`. Current device preference is to keep OS/app haptic feedback and keyboard vibration enabled too.
 
 The repository remote should use SSH:
 
 ```powershell
-git remote set-url origin git@github.com:noeldvictor/dolphin.git
+git remote set-url origin git@github.com:noeldvictor/dolphin-thor-experiment.git
 ```
 
 ## Git Workflow

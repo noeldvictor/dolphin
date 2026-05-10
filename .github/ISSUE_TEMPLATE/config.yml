@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: No support for this experiment
+    url: https://github.com/noeldvictor/dolphin-thor-experiment/fork
+    about: Please fork this personal experiment instead of opening issues here.
