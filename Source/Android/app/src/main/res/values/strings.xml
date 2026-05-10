@@ -943,12 +943,31 @@ It can efficiently compress both junk data and encrypted Wii data.
 
     <!-- Custom GPU drivers -->
     <string name="gpu_driver_dialog_title">Select the GPU driver for Dolphin</string>
-    <string name="gpu_driver_dialog_message">Current: %1$s\n\nRecommended: newest standard Turnip ZIP from K11MCH1/AdrenoToolsDrivers. A8xx, GMEM, and Sysmem builds are listed too for manual testing.</string>
+    <string name="gpu_driver_dialog_title_with_driver">GPU driver: %1$s</string>
     <string name="gpu_driver_dialog_system">Default</string>
     <string name="gpu_driver_dialog_install">Install driver</string>
-    <string name="gpu_driver_dialog_get_turnip">Get Turnip from GitHub</string>
+    <string name="gpu_driver_dialog_get_turnip">Recommended: Get Turnip from GitHub</string>
     <string name="gpu_driver_dialog_uninstall_done">Successfully switched to the system driver</string>
     <string name="gpu_driver_submenu">GPU Driver</string>
+    <string name="gpu_driver_manager_title">GPU Driver Manager</string>
+    <string name="gpu_driver_current_driver">Current: %1$s</string>
+    <string name="gpu_driver_manager_description">Recommended for AYN Thor: newest standard Turnip ZIP from K11MCH1/AdrenoToolsDrivers. Use variants only when testing a specific issue.</string>
+    <string name="gpu_driver_install_recommended_turnip">Download recommended Turnip from GitHub</string>
+    <string name="gpu_driver_install_recommended_turnip_desc">Automatically fetches the GitHub release list, picks the newest standard Turnip ZIP, downloads it, and installs it.</string>
+    <string name="gpu_driver_refresh_turnip_list">Show GitHub Turnip packages</string>
+    <string name="gpu_driver_refresh_turnip_list_desc">Loads selectable Turnip ZIPs from K11MCH1/AdrenoToolsDrivers releases.</string>
+    <string name="gpu_driver_turnip_list_empty_title">GitHub packages not loaded</string>
+    <string name="gpu_driver_turnip_list_empty_desc">Use Show GitHub Turnip packages to list selectable driver ZIPs.</string>
+    <string name="gpu_driver_turnip_list_title">GitHub Turnip packages</string>
+    <string name="gpu_driver_turnip_list_desc">Recommended appears first. Tap any package to download and install it.</string>
+    <string name="gpu_driver_turnip_recommended_row">Recommended: %1$s</string>
+    <string name="gpu_driver_turnip_row_description">%1$s - %2$s - %3$s</string>
+    <string name="gpu_driver_turnip_list_loaded">Loaded %1$d GitHub Turnip packages.</string>
+    <string name="gpu_driver_install_local_zip">Install local driver ZIP</string>
+    <string name="gpu_driver_install_local_zip_desc">Pick a driver package already saved on this device.</string>
+    <string name="gpu_driver_use_system">Use system GPU driver</string>
+    <string name="gpu_driver_use_system_desc">Remove the custom driver and return to the built-in Android GPU driver.</string>
+    <string name="gpu_driver_advanced_title">Manual and reset</string>
     <string name="gpu_driver_install_inprogress">Installing the GPU driver…</string>
     <string name="gpu_driver_install_success">GPU driver installed successfully</string>
     <string name="gpu_driver_install_invalid_archive">Failed to unzip the provided driver package</string>

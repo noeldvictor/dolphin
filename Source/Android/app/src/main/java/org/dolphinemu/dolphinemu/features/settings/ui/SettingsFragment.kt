@@ -8,13 +8,11 @@ package org.dolphinemu.dolphinemu.features.settings.ui
 
 import android.app.Activity
 import android.content.Context
-import android.content.DialogInterface
 import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.ViewCompat
@@ -25,13 +23,11 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import org.dolphinemu.dolphinemu.R
 import org.dolphinemu.dolphinemu.databinding.FragmentSettingsBinding
 import org.dolphinemu.dolphinemu.features.settings.model.Settings
 import org.dolphinemu.dolphinemu.features.settings.model.view.SettingsItem
-import org.dolphinemu.dolphinemu.utils.DownloadableGpuDriver
 import org.dolphinemu.dolphinemu.utils.GpuDriverInstallResult
 import org.dolphinemu.dolphinemu.utils.SerializableHelper.serializable
 import java.util.*
@@ -134,11 +130,6 @@ class SettingsFragment : Fragment(), SettingsFragmentView {
     }
 
     override fun loadSubMenu(menuKey: MenuTag) {
-        if (menuKey == MenuTag.GPU_DRIVERS) {
-            showGpuDriverDialog()
-            return
-        }
-
         activityView!!.showSettingsFragment(
             menuKey,
             null,
@@ -198,88 +189,6 @@ class SettingsFragment : Fragment(), SettingsFragmentView {
         }
     }
 
-    override fun showGpuDriverDialog() {
-        if (presenter.gpuDriver == null) {
-            return
-        }
-
-        val currentDriver = "${presenter.gpuDriver!!.name} ${presenter.gpuDriver!!.driverVersion}"
-        val actions = arrayOf(
-            getString(R.string.gpu_driver_dialog_get_turnip),
-            getString(R.string.gpu_driver_dialog_install),
-            getString(R.string.gpu_driver_dialog_system)
-        )
-
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle(getString(R.string.gpu_driver_dialog_title))
-            .setMessage(getString(R.string.gpu_driver_dialog_message, currentDriver))
-            .setItems(actions) { _: DialogInterface?, which: Int ->
-                when (which) {
-                    0 -> {
-                        showSnackbar(R.string.gpu_driver_github_fetching)
-                        presenter.fetchTurnipDrivers()
-                    }
-                    1 -> askForDriverFile()
-                    2 -> presenter.useSystemDriver()
-                }
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
-    }
-
-    override fun showTurnipDriverPicker(drivers: List<DownloadableGpuDriver>) {
-        if (drivers.isEmpty()) {
-            showSnackbar(R.string.gpu_driver_github_no_turnip)
-            return
-        }
-
-        val labels = drivers.map { driver ->
-            val labelRes = if (driver.recommended) {
-                R.string.gpu_driver_turnip_recommended_item
-            } else {
-                R.string.gpu_driver_turnip_item
-            }
-            getString(labelRes, driver.assetName, driver.releaseName, driver.sizeLabel)
-        }.toTypedArray()
-
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle(R.string.gpu_driver_turnip_picker_title)
-            .setMessage(R.string.gpu_driver_turnip_picker_message)
-            .setItems(labels) { _: DialogInterface?, which: Int ->
-                confirmTurnipDriverInstall(drivers[which])
-            }
-            .setNeutralButton(R.string.gpu_driver_dialog_install) { _: DialogInterface?, _: Int ->
-                askForDriverFile()
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
-    }
-
-    private fun confirmTurnipDriverInstall(driver: DownloadableGpuDriver) {
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle(
-                if (driver.recommended) {
-                    getString(R.string.gpu_driver_turnip_confirm_title_recommended)
-                } else {
-                    driver.assetName
-                }
-            )
-            .setMessage(
-                getString(
-                    R.string.gpu_driver_turnip_confirm_message,
-                    driver.assetName,
-                    driver.releaseName,
-                    driver.sizeLabel
-                )
-            )
-            .setPositiveButton(R.string.gpu_driver_turnip_download_install) { _: DialogInterface?, _: Int ->
-                showSnackbar(R.string.gpu_driver_github_downloading)
-                presenter.downloadAndInstallDriver(driver)
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
-    }
-
     override fun getFragmentLifecycle(): Lifecycle {
         return lifecycle
     }
@@ -292,16 +201,16 @@ class SettingsFragment : Fragment(), SettingsFragmentView {
         requestGpuDriver.launch(intent)
     }
 
+    override fun askForGpuDriverFile() = askForDriverFile()
+
+    override fun showGpuDriverStatus(message: CharSequence) = showSnackbar(message.toString())
+
     override fun onDriverInstallDone(result: GpuDriverInstallResult) {
         showSnackbar(resolveInstallResultString(result))
     }
 
     override fun onDriverUninstallDone() {
-        Toast.makeText(
-            requireContext(),
-            R.string.gpu_driver_dialog_uninstall_done,
-            Toast.LENGTH_SHORT
-        ).show()
+        showSnackbar(R.string.gpu_driver_dialog_uninstall_done)
     }
 
     private fun resolveInstallResultString(result: GpuDriverInstallResult) = when (result) {
@@ -353,6 +262,7 @@ class SettingsFragment : Fragment(), SettingsFragmentView {
             titles[MenuTag.HACKS] = R.string.hacks_submenu
             titles[MenuTag.STATISTICS] = R.string.statistics_submenu
             titles[MenuTag.ADVANCED_GRAPHICS] = R.string.advanced_graphics_submenu
+            titles[MenuTag.GPU_DRIVERS] = R.string.gpu_driver_manager_title
             titles[MenuTag.CONFIG_LOG] = R.string.log_submenu
             titles[MenuTag.GCPAD_TYPE] = R.string.gcpad_settings
             titles[MenuTag.WIIMOTE] = R.string.wiimote_settings

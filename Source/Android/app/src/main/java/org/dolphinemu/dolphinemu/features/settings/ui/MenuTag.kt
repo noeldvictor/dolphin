@@ -25,6 +25,7 @@ enum class MenuTag {
     HACKS("hacks"),
     STATISTICS("statistics"),
     ADVANCED_GRAPHICS("advanced_graphics"),
+    GPU_DRIVERS("gpu_drivers"),
     GCPAD_TYPE("gc_pad_type"),
     WIIMOTE("wiimote"),
     WIIMOTE_EXTENSION("wiimote_extension"),
@@ -51,8 +52,7 @@ enum class MenuTag {
     WIIMOTE_MOTION_INPUT_1("wiimote_motion_input", 0),
     WIIMOTE_MOTION_INPUT_2("wiimote_motion_input", 1),
     WIIMOTE_MOTION_INPUT_3("wiimote_motion_input", 2),
-    WIIMOTE_MOTION_INPUT_4("wiimote_motion_input", 3),
-    GPU_DRIVERS("gpu_drivers");
+    WIIMOTE_MOTION_INPUT_4("wiimote_motion_input", 3);
 
     var tag: String
         private set

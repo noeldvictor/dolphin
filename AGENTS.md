@@ -27,7 +27,7 @@ Current product decisions from 2026-05-10:
 - Android app branding should read `Dolphin Thor Experiment` for the fork; the debug APK label is `Dolphin Thor Experiment Debug`.
 - Public README tone should be clear and blunt: this is a personal-use AI/vibe-coded experiment, no stability guarantees, no support queue, and people should fork it if they want different behavior. Do not mention APK downloads in `Readme.md`.
 - Project art lives in `docs/assets/`; README screenshots live in `docs/screenshots/`.
-- GPU driver setup should stay easy for Thor users: the Android GPU Driver menu fetches Turnip ZIP assets from `K11MCH1/AdrenoToolsDrivers`, marks the newest standard Turnip ZIP as recommended, and keeps manual local ZIP install available for variants.
+- GPU driver setup should stay easy for Thor users: the Android GPU Driver Manager has a one-tap recommended Turnip download/install from `K11MCH1/AdrenoToolsDrivers`, a refreshable selectable GitHub ZIP list, a manual local ZIP install path, and a system-driver reset.
 - Optional AYN/Odin-style Android controller profiles should be available for GameCube, Wii Classic Controller, and Wii Remote + Nunchuk layouts.
 - AYN Thor rumble is routed through Android's system vibrator (`Android/0/Device Sensors:Motor 0`) as game/media vibration. Android will ignore app rumble when the device-wide `vibrate_on` system setting is `0`. Current device preference is to keep OS/app haptic feedback and keyboard vibration enabled too.
 

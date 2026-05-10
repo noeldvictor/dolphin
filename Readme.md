@@ -41,7 +41,7 @@ This fork intentionally diverges from a plain Dolphin Android build in several p
 - Fast-forward uses a user-configurable percentage with a 200% default and preserves audio pitch.
 - Optional AYN/Odin-style controller profiles are included for GameCube, Wii Classic Controller, and Wii Remote + Nunchuk layouts.
 - AYN Thor rumble is routed through Android game/media vibration instead of pretending every Android haptic path behaves the same.
-- The Android GPU Driver menu can fetch Turnip driver ZIPs from GitHub, mark the newest standard Turnip package as recommended, and still let you pick a variant or local ZIP.
+- The Android GPU Driver Manager can one-tap download/install the recommended Turnip ZIP from GitHub, show selectable K11MCH1/AdrenoToolsDrivers packages, install a local ZIP, or reset to the system driver.
 - Release builds are the normal Thor testing path because debug builds can be much slower.
 
 ## Cheat Notes
@@ -75,5 +75,6 @@ This project stands on other people's work:
 - [Dolphin Emulator](https://dolphin-emu.org/), the original GameCube and Wii emulator project.
 - [dolphin-emu/dolphin](https://github.com/dolphin-emu/dolphin), the upstream codebase this fork came from.
 - [RC24/GameHacking Gecko code mirror](https://codes.rc24.xyz/), used as the source trail for the bundled Gecko-code cache.
+- [K11MCH1/AdrenoToolsDrivers](https://github.com/K11MCH1/AdrenoToolsDrivers/releases), used by the Android GPU Driver Manager to fetch Turnip driver ZIPs.
 
 Dolphin is licensed under the terms of the GNU General Public License, version 2 or later. This fork's branding, docs, screenshots, and Android experiment notes are part of the experiment; emulator code remains under the applicable upstream licenses.

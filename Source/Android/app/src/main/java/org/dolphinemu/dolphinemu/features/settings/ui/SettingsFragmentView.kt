@@ -7,7 +7,6 @@ import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
 import org.dolphinemu.dolphinemu.features.settings.model.Settings
 import org.dolphinemu.dolphinemu.features.settings.model.view.SettingsItem
-import org.dolphinemu.dolphinemu.utils.DownloadableGpuDriver
 import org.dolphinemu.dolphinemu.utils.GpuDriverInstallResult
 
 /**
@@ -123,14 +122,14 @@ interface SettingsFragmentView {
     fun onDriverUninstallDone()
 
     /**
-     * Shows a dialog asking the user to install or uninstall a GPU driver
+     * Shows a short status message for GPU driver manager work.
      */
-    fun showGpuDriverDialog()
+    fun showGpuDriverStatus(message: CharSequence)
 
     /**
-     * Shows GitHub-hosted Turnip driver choices.
+     * Opens the system picker for a local GPU driver ZIP.
      */
-    fun showTurnipDriverPicker(drivers: List<DownloadableGpuDriver>)
+    fun askForGpuDriverFile()
 
     /**
      * Returns the Lifecycle for the Fragment.

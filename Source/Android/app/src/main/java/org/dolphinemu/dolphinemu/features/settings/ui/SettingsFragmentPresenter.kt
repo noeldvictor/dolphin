@@ -53,6 +53,7 @@ class SettingsFragmentPresenter(
     private var controllerType = 0
 
     var gpuDriver: GpuDriverMetadata? = null
+    private var downloadableGpuDrivers: List<DownloadableGpuDriver> = emptyList()
     private val libNameSetting: StringSetting = StringSetting.GFX_DRIVER_LIB_NAME
 
     fun onCreate(menuTag: MenuTag, gameId: String?, extras: Bundle) {
@@ -67,7 +68,7 @@ class SettingsFragmentPresenter(
         } else if (menuTag.isSerialPort1Menu) {
             serialPort1Type = extras.getInt(ARG_SERIALPORT1_TYPE)
         } else if (
-            menuTag == MenuTag.GRAPHICS
+            (menuTag == MenuTag.GRAPHICS || menuTag == MenuTag.GPU_DRIVERS)
             && this.gameId.isNullOrEmpty()
             && NativeLibrary.IsUninitialized()
             && GpuDriverHelper.supportsCustomDriverLoading()
@@ -122,6 +123,7 @@ class SettingsFragmentPresenter(
             MenuTag.HACKS -> addHackSettings(sl)
             MenuTag.STATISTICS -> addStatisticsSettings(sl)
             MenuTag.ADVANCED_GRAPHICS -> addAdvancedGraphicsSettings(sl)
+            MenuTag.GPU_DRIVERS -> addGpuDriverSettings(sl)
             MenuTag.CONFIG_LOG -> addLogConfigurationSettings(sl)
             MenuTag.DEBUG -> addDebugSettings(sl)
             MenuTag.GCPAD_1,
@@ -1605,6 +1607,113 @@ class SettingsFragmentPresenter(
         }
     }
 
+    private fun addGpuDriverSettings(sl: ArrayList<SettingsItem>) {
+        val currentDriver = gpuDriver?.label ?: context.getString(R.string.gpu_driver_dialog_system)
+
+        sl.add(
+            HeaderSetting(
+                context.getString(R.string.gpu_driver_current_driver, currentDriver),
+                context.getString(R.string.gpu_driver_manager_description)
+            )
+        )
+        sl.add(
+            RunRunnable(
+                context,
+                R.string.gpu_driver_install_recommended_turnip,
+                R.string.gpu_driver_install_recommended_turnip_desc,
+                0,
+                0,
+                false
+            ) {
+                fragmentView.showGpuDriverStatus(
+                    context.getString(R.string.gpu_driver_github_downloading)
+                )
+                downloadRecommendedTurnipDriver()
+            }
+        )
+        sl.add(
+            RunRunnable(
+                context,
+                R.string.gpu_driver_refresh_turnip_list,
+                R.string.gpu_driver_refresh_turnip_list_desc,
+                0,
+                0,
+                false
+            ) {
+                fragmentView.showGpuDriverStatus(
+                    context.getString(R.string.gpu_driver_github_fetching)
+                )
+                refreshTurnipDriverList()
+            }
+        )
+
+        if (downloadableGpuDrivers.isEmpty()) {
+            sl.add(
+                HeaderSetting(
+                    context,
+                    R.string.gpu_driver_turnip_list_empty_title,
+                    R.string.gpu_driver_turnip_list_empty_desc
+                )
+            )
+        } else {
+            sl.add(
+                HeaderSetting(
+                    context,
+                    R.string.gpu_driver_turnip_list_title,
+                    R.string.gpu_driver_turnip_list_desc
+                )
+            )
+
+            downloadableGpuDrivers.forEach { driver ->
+                val title =
+                    if (driver.recommended) {
+                        context.getString(
+                            R.string.gpu_driver_turnip_recommended_row,
+                            driver.assetName
+                        )
+                    } else {
+                        driver.assetName
+                    }
+                val description = context.getString(
+                    R.string.gpu_driver_turnip_row_description,
+                    driver.releaseName,
+                    driver.tagName,
+                    driver.sizeLabel
+                )
+                sl.add(
+                    RunRunnable(title, description, 0, 0, false) {
+                        fragmentView.showGpuDriverStatus(
+                            context.getString(R.string.gpu_driver_github_downloading)
+                        )
+                        downloadAndInstallDriver(driver)
+                    }
+                )
+            }
+        }
+
+        sl.add(HeaderSetting(context, R.string.gpu_driver_advanced_title, 0))
+        sl.add(
+            RunRunnable(
+                context,
+                R.string.gpu_driver_install_local_zip,
+                R.string.gpu_driver_install_local_zip_desc,
+                0,
+                0,
+                false
+            ) { fragmentView.askForGpuDriverFile() }
+        )
+        sl.add(
+            RunRunnable(
+                context,
+                R.string.gpu_driver_use_system,
+                R.string.gpu_driver_use_system_desc,
+                0,
+                0,
+                false
+            ) { useSystemDriver() }
+        )
+    }
+
     private fun addEnhanceSettings(sl: ArrayList<SettingsItem>) {
         sl.add(
             SingleChoiceSetting(
@@ -2828,9 +2937,14 @@ class SettingsFragmentPresenter(
     fun installDriver(uri: Uri) {
         val context = this.context.applicationContext
         CoroutineScope(Dispatchers.IO).launch {
-            val stream = context.contentResolver.openInputStream(uri)
+            val stream = try {
+                context.contentResolver.openInputStream(uri)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                null
+            }
+
             if (stream == null) {
-                GpuDriverHelper.uninstallDriver()
                 withContext(Dispatchers.Main) {
                     fragmentView.onDriverInstallDone(GpuDriverInstallResult.FileNotFound)
                 }
@@ -2839,17 +2953,12 @@ class SettingsFragmentPresenter(
 
             val result = stream.use { GpuDriverHelper.installDriver(it) }
             withContext(Dispatchers.Main) {
-                with(this@SettingsFragmentPresenter) {
-                    this.gpuDriver = GpuDriverHelper.getInstalledDriverMetadata()
-                        ?: GpuDriverHelper.getSystemDriverMetadata(context) ?: return@withContext
-                    this.libNameSetting.setString(this.settings!!, this.gpuDriver!!.libraryName)
-                }
-                fragmentView.onDriverInstallDone(result)
+                finishGpuDriverInstall(result, context)
             }
         }
     }
 
-    fun fetchTurnipDrivers() {
+    fun refreshTurnipDriverList() {
         CoroutineScope(Dispatchers.IO).launch {
             val drivers = try {
                 GpuDriverDownloadHelper.fetchTurnipDrivers()
@@ -2862,11 +2971,48 @@ class SettingsFragmentPresenter(
             }
 
             withContext(Dispatchers.Main) {
+                downloadableGpuDrivers = drivers
+                refreshGpuDriverSettingsList()
+
                 if (drivers.isEmpty()) {
                     fragmentView.onDriverInstallDone(GpuDriverInstallResult.NoTurnipDriverFound)
                 } else {
-                    fragmentView.showTurnipDriverPicker(drivers)
+                    fragmentView.showGpuDriverStatus(
+                        context.getString(R.string.gpu_driver_turnip_list_loaded, drivers.size)
+                    )
                 }
+            }
+        }
+    }
+
+    fun downloadRecommendedTurnipDriver() {
+        val context = this.context.applicationContext
+        CoroutineScope(Dispatchers.IO).launch {
+            val drivers = try {
+                GpuDriverDownloadHelper.fetchTurnipDrivers()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    fragmentView.onDriverInstallDone(GpuDriverInstallResult.NetworkError)
+                }
+                return@launch
+            }
+
+            val driver = drivers.firstOrNull { it.recommended } ?: drivers.firstOrNull()
+            if (driver == null) {
+                withContext(Dispatchers.Main) {
+                    downloadableGpuDrivers = emptyList()
+                    refreshGpuDriverSettingsList()
+                    fragmentView.onDriverInstallDone(GpuDriverInstallResult.NoTurnipDriverFound)
+                }
+                return@launch
+            }
+
+            val result = downloadAndInstallDriverBlocking(context, driver)
+
+            withContext(Dispatchers.Main) {
+                downloadableGpuDrivers = drivers
+                finishGpuDriverInstall(result, context)
             }
         }
     }
@@ -2874,26 +3020,10 @@ class SettingsFragmentPresenter(
     fun downloadAndInstallDriver(driver: DownloadableGpuDriver) {
         val context = this.context.applicationContext
         CoroutineScope(Dispatchers.IO).launch {
-            val downloadedDriver = try {
-                GpuDriverDownloadHelper.downloadDriver(context, driver)
-            } catch (e: Exception) {
-                e.printStackTrace()
-                withContext(Dispatchers.Main) {
-                    fragmentView.onDriverInstallDone(GpuDriverInstallResult.DownloadFailed)
-                }
-                return@launch
-            }
-
-            val result = downloadedDriver.inputStream().use { GpuDriverHelper.installDriver(it) }
-            downloadedDriver.delete()
+            val result = downloadAndInstallDriverBlocking(context, driver)
 
             withContext(Dispatchers.Main) {
-                with(this@SettingsFragmentPresenter) {
-                    this.gpuDriver = GpuDriverHelper.getInstalledDriverMetadata()
-                        ?: GpuDriverHelper.getSystemDriverMetadata(context) ?: return@withContext
-                    this.libNameSetting.setString(this.settings!!, this.gpuDriver!!.libraryName)
-                }
-                fragmentView.onDriverInstallDone(result)
+                finishGpuDriverInstall(result, context)
             }
         }
     }
@@ -2902,14 +3032,49 @@ class SettingsFragmentPresenter(
         CoroutineScope(Dispatchers.IO).launch {
             GpuDriverHelper.uninstallDriver()
             withContext(Dispatchers.Main) {
-                with(this@SettingsFragmentPresenter) {
-                    this.gpuDriver =
-                        GpuDriverHelper.getInstalledDriverMetadata()
-                            ?: GpuDriverHelper.getSystemDriverMetadata(context.applicationContext)
-                    this.libNameSetting.setString(this.settings!!, "")
-                }
+                syncGpuDriverSetting(context.applicationContext)
+                fragmentView.onSettingChanged()
+                refreshGpuDriverSettingsList()
                 fragmentView.onDriverUninstallDone()
             }
+        }
+    }
+
+    private fun downloadAndInstallDriverBlocking(
+        context: Context,
+        driver: DownloadableGpuDriver
+    ): GpuDriverInstallResult {
+        val downloadedDriver = try {
+            GpuDriverDownloadHelper.downloadDriver(context, driver)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return GpuDriverInstallResult.DownloadFailed
+        }
+
+        return try {
+            downloadedDriver.inputStream().use { GpuDriverHelper.installDriver(it) }
+        } finally {
+            downloadedDriver.delete()
+        }
+    }
+
+    private fun finishGpuDriverInstall(result: GpuDriverInstallResult, context: Context) {
+        syncGpuDriverSetting(context)
+        fragmentView.onSettingChanged()
+        refreshGpuDriverSettingsList()
+        fragmentView.onDriverInstallDone(result)
+    }
+
+    private fun syncGpuDriverSetting(context: Context) {
+        val installedDriver = GpuDriverHelper.getInstalledDriverMetadata()
+        gpuDriver = installedDriver ?: GpuDriverHelper.getSystemDriverMetadata(context)
+        settings?.let { libNameSetting.setString(it, installedDriver?.libraryName ?: "") }
+    }
+
+    private fun refreshGpuDriverSettingsList() {
+        if (menuTag == MenuTag.GPU_DRIVERS && settings != null) {
+            settingsList = null
+            loadSettingsList()
         }
     }
 
