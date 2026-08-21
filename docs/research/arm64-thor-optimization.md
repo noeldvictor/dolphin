@@ -204,8 +204,34 @@ Applied, verifiable from the build itself:
 
 Verified on the device, not just at build time: the ARMv8.4 binary installs and
 runs on the Thor, and Dolphin's own aarch64 unit-test suite passes **1031 of 1031**
-on it. No game has been booted, so the JIT and video backend have not been exercised
-against real guest code on hardware.
+on it. That includes the five `JitArm64` emitter tests (`ConvertSingleDouble`, `FPRF`,
+`Fres`, `Frsqrte`, `MovI2R`), which assemble and execute JIT output, so the emitter does
+run on this hardware. No game has been booted, so the JIT has not been exercised against
+real guest code and the video backend has not been exercised at all.
+
+### First timing run: no measurable difference
+
+The pre-change binary (`-O2 -g`, `-march=armv8-a+crc`) and the post-change one (`-O3`,
+`-march=armv8.4-a+...`) were both run on the Thor, pinned to the performance cores with
+`taskset f8`, five alternating runs of the PowerPC/JIT/VertexLoader/Hash subset:
+
+| | runs (ms) | median |
+|---|---|---:|
+| before | 3918, 3962, 3939, 4074, 3909 | **3939** |
+| after | 3914, 3920, 4197, 4034, 3981 | **3981** |
+
+That is a null result - the 1% gap sits well inside the ~7% run-to-run spread. **Better
+codegen has not been shown to be faster.**
+
+This does not refute section 1, but it does not support it either, and the distinction
+matters. The unit suite is dominated by vertex-loader table churn, DSP assembly text
+handling and filesystem tests. It barely touches the CPU/GPU FIFO, `Common::Flag` or
+`Common::Event` - the atomic-heavy paths where inlined LSE was supposed to pay off - and it
+runs no guest code beyond a handful of JIT emitter tests. It is the wrong workload to detect
+the thing that was changed.
+
+So the ARMv8.4 build is justified by what it demonstrably does to the generated code, and by
+nothing more than that so far. A real title is still the only way to know whether it matters.
 
 Open, in the order worth doing them:
 

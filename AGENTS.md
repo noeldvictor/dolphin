@@ -253,6 +253,11 @@ adb -s <serial> shell 'rm -rf /data/local/tmp/dolphin_tests_arm64 /data/local/tm
 
 Expected on 2026-08-21, on the Thor, with the ARMv8.4 build: **1031 of 1031 pass** in about 8 seconds.
 
+That total includes the five `JitArm64` emitter tests, which assemble and execute JIT output, so a green run
+does prove the emitter works on the device. It does **not** prove anything about emulation speed - see the
+timing section of `docs/research/arm64-thor-optimization.md`, where this suite failed to detect the ARMv8.4
+build change at all because it is the wrong workload for it.
+
 ## Verification Checklist
 
 - Run Kotlin/Android formatting for edited Java/Kotlin files using the Dolphin code style from `Source/Android/code-style-java.xml`.
