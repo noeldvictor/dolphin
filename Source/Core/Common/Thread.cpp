@@ -21,6 +21,15 @@
 #include <OS.h>
 #endif
 
+#if defined(__linux__) || defined(ANDROID)
+#include <sched.h>
+
+#include <algorithm>
+#include <cstdio>
+#include <limits>
+#include <string>
+#endif
+
 #ifdef USE_VTUNE
 #include <ittnotify.h>
 #pragma comment(lib, "libittnotify.lib")
@@ -153,7 +162,20 @@ void SetThreadAffinity(std::thread::native_handle_type thread, u32 mask)
 
 void SetCurrentThreadAffinity(u32 mask)
 {
+#ifdef ANDROID
+  // bionic only gained pthread_setaffinity_np in API 26, and Dolphin's minSdk is lower than
+  // that, so go through sched_setaffinity instead. A thread may always re-affine itself.
+  cpu_set_t cpu_set;
+  CPU_ZERO(&cpu_set);
+
+  for (int i = 0; i != sizeof(mask) * 8; ++i)
+    if ((mask >> i) & 1)
+      CPU_SET(i, &cpu_set);
+
+  sched_setaffinity(0, sizeof(cpu_set), &cpu_set);
+#else
   SetThreadAffinity(pthread_self(), mask);
+#endif
 }
 
 void SleepCurrentThread(int ms)
@@ -223,5 +245,65 @@ std::tuple<void*, size_t> GetCurrentThreadStack()
 }
 
 #endif
+
+u32 GetPerformanceCoreAffinityMask()
+{
+#if defined(__linux__) || defined(ANDROID)
+  // Rank CPUs by their cpufreq ceiling and keep the fastest cluster(s). On a big.LITTLE part
+  // this separates the performance cores from the efficiency ones without hardcoding a
+  // topology - on the Snapdragon 8 Gen 2 in the AYN Thor it selects the Cortex-X3 and the
+  // A715/A710 cores and drops the A510s.
+  constexpr int MAX_CPUS = 32;
+
+  u32 max_freqs[MAX_CPUS] = {};
+  u32 highest = 0;
+
+  for (int cpu = 0; cpu < MAX_CPUS; ++cpu)
+  {
+    const std::string path =
+        "/sys/devices/system/cpu/cpu" + std::to_string(cpu) + "/cpufreq/cpuinfo_max_freq";
+
+    std::FILE* file = std::fopen(path.c_str(), "r");
+    if (!file)
+      continue;
+
+    unsigned long long khz = 0;
+    if (std::fscanf(file, "%llu", &khz) == 1 && khz != 0 && khz <= std::numeric_limits<u32>::max())
+    {
+      max_freqs[cpu] = static_cast<u32>(khz);
+      highest = std::max(highest, max_freqs[cpu]);
+    }
+
+    std::fclose(file);
+  }
+
+  if (highest == 0)
+    return 0;
+
+  // Anything within 25% of the fastest core counts as a performance core. That is wide enough
+  // to keep a prime core and the mid cluster together, and narrow enough to exclude the
+  // little cores, which run far slower than that on every part we care about.
+  const u32 threshold = highest - highest / 4;
+
+  u32 mask = 0;
+  for (int cpu = 0; cpu < MAX_CPUS; ++cpu)
+  {
+    if (max_freqs[cpu] >= threshold)
+      mask |= 1u << cpu;
+  }
+
+  // A uniform machine gives us every CPU, which is the same as not pinning at all.
+  u32 all = 0;
+  for (int cpu = 0; cpu < MAX_CPUS; ++cpu)
+  {
+    if (max_freqs[cpu] != 0)
+      all |= 1u << cpu;
+  }
+
+  return mask == all ? 0 : mask;
+#else
+  return 0;
+#endif
+}
 
 }  // namespace Common

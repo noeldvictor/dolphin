@@ -18,6 +18,12 @@ enum class BooleanSetting(
     MAIN_FASTMEM_ARENA(Settings.FILE_DOLPHIN, Settings.SECTION_INI_CORE, "FastmemArena", true),
     MAIN_LARGE_ENTRY_POINTS_MAP(Settings.FILE_DOLPHIN, Settings.SECTION_INI_CORE, "LargeEntryPointsMap", true),
     MAIN_CPU_THREAD(Settings.FILE_DOLPHIN, Settings.SECTION_INI_CORE, "CPUThread", true),
+    MAIN_PERFORMANCE_CORE_AFFINITY(
+        Settings.FILE_DOLPHIN,
+        Settings.SECTION_INI_CORE,
+        "PerformanceCoreAffinity",
+        false
+    ),
     MAIN_SYNC_ON_SKIP_IDLE(
         Settings.FILE_DOLPHIN,
         Settings.SECTION_INI_CORE,
@@ -998,6 +1004,7 @@ enum class BooleanSetting(
             MAIN_FASTMEM_ARENA,
             MAIN_LARGE_ENTRY_POINTS_MAP,
             MAIN_CPU_THREAD,
+            MAIN_PERFORMANCE_CORE_AFFINITY,
             MAIN_ENABLE_CHEATS,
             MAIN_OVERRIDE_REGION_SETTINGS,
             MAIN_MMU,

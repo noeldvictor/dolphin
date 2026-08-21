@@ -26,6 +26,11 @@ int CurrentThreadId();
 void SetThreadAffinity(std::thread::native_handle_type thread, u32 mask);
 void SetCurrentThreadAffinity(u32 mask);
 
+// Returns an affinity mask covering the CPUs that belong to the fastest clusters of an
+// asymmetric (big.LITTLE) system, or 0 when the topology is unknown or uniform. Currently
+// only implemented for Linux and Android, where it is derived from cpufreq.
+u32 GetPerformanceCoreAffinityMask();
+
 void SleepCurrentThread(int ms);
 void SwitchCurrentThread();  // On Linux, this is equal to sleep 1ms
 

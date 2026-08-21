@@ -319,6 +319,26 @@ static void CPUSetInitialExecutionState(Core::System& system, bool force_paused 
   Host_UpdateDisasmDialog();
 }
 
+// Pin the calling thread to the host's performance cores. On an asymmetric CPU the scheduler is
+// free to park an emulation thread on an efficiency core, which costs far more than anything the
+// emulator can win back in software. Opt-in, because the right answer is device and game
+// dependent and a bad pin is worse than no pin.
+static void ApplyPerformanceCoreAffinity(const char* thread_name)
+{
+  if (!Config::Get(Config::MAIN_PERFORMANCE_CORE_AFFINITY))
+    return;
+
+  const u32 mask = Common::GetPerformanceCoreAffinityMask();
+  if (mask == 0)
+  {
+    INFO_LOG_FMT(COMMON, "{}: no asymmetric CPU topology detected, not pinning", thread_name);
+    return;
+  }
+
+  INFO_LOG_FMT(COMMON, "{}: pinning to performance cores (mask {:#x})", thread_name, mask);
+  Common::SetCurrentThreadAffinity(mask);
+}
+
 // Create the CPU thread, which is a CPU + Video thread in Single Core mode.
 static void CpuThread(Core::System& system, const std::optional<std::string>& savestate_path,
                       bool delete_savestate)
@@ -327,6 +347,8 @@ static void CpuThread(Core::System& system, const std::optional<std::string>& sa
     Common::SetCurrentThreadName("CPU thread");
   else
     Common::SetCurrentThreadName("CPU-GPU thread");
+
+  ApplyPerformanceCoreAffinity("CPU thread");
 
   // This needs to be delayed until after the video backend is ready.
   DolphinAnalytics::Instance().ReportGameStart();
@@ -471,6 +493,8 @@ static void FifoPlayerThread(Core::System& system, const std::optional<std::stri
     // Spawn the GPU thread.
     std::thread gpu_thread{[&] {
       Common::SetCurrentThreadName("Video thread");
+
+      ApplyPerformanceCoreAffinity("Video thread");
 
       const bool is_init = init_video();
       init_from_thread.set_value(is_init);

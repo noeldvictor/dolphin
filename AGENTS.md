@@ -83,7 +83,19 @@ git remote set-url origin git@github.com:noeldvictor/dolphin-thor-experiment.git
   - `Data/Sys/Profiles/GCPad/AYN Odin Android GameCube.ini`
   - `Data/Sys/Profiles/Wiimote/AYN Odin Android Classic Controller.ini`
   - `Data/Sys/Profiles/Wiimote/AYN Odin Android Nunchuk.ini`
+  - `Data/Sys/Profiles/Wiimote/AYN Thor Android Wii Remote Motion.ini` (gyro/accelerometer motion plus IMUIR pointing)
   - Android build configuration copies `Data/Sys` into the ignored/generated `Source/Android/app/src/main/assets/Sys` folder.
+  - That copy is a **configure-time** `file(COPY)` in `Source/Android/jni/CMakeLists.txt`, not a build step. A new
+    file under `Data/Sys` (a profile, a GameSettings INI, a regenerated `GeckoCodes.zip`) will **not** reach the APK
+    from an incremental build - CMake has to re-configure first. Touch `Source/Android/jni/CMakeLists.txt` to force
+    it, then check the APK actually contains the file before believing it shipped:
+
+```powershell
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$z = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path Source/Android/app/build/outputs/apk/release/app-release.apk))
+$z.Entries | Where-Object { $_.FullName -like '*Profiles/Wiimote*' } | ForEach-Object { $_.FullName }
+$z.Dispose()
+```
 - Savestate entry points:
   - Kotlin: `NativeLibrary.SaveState(slot)` and `NativeLibrary.LoadState(slot)`
   - JNI: `Source/Android/jni/MainAndroid.cpp`
@@ -131,6 +143,12 @@ Vendor manuals are kept in `docs/reference/` and are **gitignored** — the PDFs
 
 Each directory's `README.md` records provenance and how to re-fetch. Copy the PDFs from a sibling Thor
 checkout (for example `psvita/Vita3K-Thor/docs/reference/`) rather than re-downloading.
+
+Thread placement: `Config::MAIN_PERFORMANCE_CORE_AFFINITY` (`Pin To Performance Cores` in Android's general
+settings, off by default) pins the CPU and Video threads to the host's fastest CPU cluster.
+`Common::GetPerformanceCoreAffinityMask` derives that cluster from cpufreq rather than hardcoding a
+topology, so on the Thor it selects the X3 plus the A715/A710 cores and drops the A510s. **This has not
+been benchmarked against a running game.** Treat it as something to A/B per title, not as a default.
 
 Host-side ARM64 optimization opportunities in this tree are reviewed in
 `docs/research/arm64-thor-optimization.md`. Nothing in that review is applied yet; read it before changing
@@ -220,22 +238,20 @@ The Android build already produces an aarch64 gtest binary, so the native suite 
 device - useful whenever build flags or the JIT change, and the only real check available when no game
 images are on the device.
 
+**Push the `Sys` directory too.** The binary resolves the Sys path relative to its working directory, and
+several tests (`PatchAllowlist.VerifyHashes` in particular) silently compute the wrong answer and fail if it
+is missing. A run without `Sys` is not a valid run.
+
 ```powershell
-$tests = Resolve-Path Source/Android/app/.cxx/Release/*/arm64-v8a/Binaries/Tests/tests
-llvm-strip -o $env:TEMP/dolphin_tests_arm64 $tests   # 248MB -> 10MB
+$build = Resolve-Path Source/Android/app/.cxx/Release/*/arm64-v8a/Binaries/Tests
+llvm-strip -o $env:TEMP/dolphin_tests_arm64 "$build/tests"   # 248MB -> 10MB
 adb -s <serial> push $env:TEMP/dolphin_tests_arm64 /data/local/tmp/
+adb -s <serial> push "$build/Sys" /data/local/tmp/
 adb -s <serial> shell 'chmod 755 /data/local/tmp/dolphin_tests_arm64 && cd /data/local/tmp && ./dolphin_tests_arm64'
 adb -s <serial> shell 'rm -rf /data/local/tmp/dolphin_tests_arm64 /data/local/tmp/Sys'
 ```
 
-Expected on 2026-08-21: **1030 of 1031 pass** in about 8 seconds.
-
-`PatchAllowlist.VerifyHashes` is the known failure, and it is **pre-existing, not a regression**. It fails
-because this fork added `Data/Sys/GameSettings/GFEP01.ini` without regenerating `Data/Sys/ApprovedInis.json`.
-That file is the RetroAchievements hardcore-mode allowlist: `AchievementManager::IsApprovedCode` disables any
-code that is not in it while hardcore is on. Regenerating it would self-approve this fork's Action Replay
-codes for hardcore achievements, so **do not regenerate it without asking** - it is a deliberate decision,
-not a chore. Leaving it failing costs nothing unless someone uses hardcore mode.
+Expected on 2026-08-21, on the Thor, with the ARMv8.4 build: **1031 of 1031 pass** in about 8 seconds.
 
 ## Verification Checklist
 

@@ -72,6 +72,8 @@
     <string name="general_submenu">General</string>
     <string name="dual_core">Dual Core (speedhack)</string>
     <string name="dual_core_description">Split workload to two CPU cores instead of one. Increases speed.</string>
+    <string name="performance_core_affinity">Pin To Performance Cores</string>
+    <string name="performance_core_affinity_description">Keep the emulation threads on the fastest CPU cores instead of letting Android place them. May help or hurt depending on the game and thermals, so try it both ways.</string>
     <string name="enable_cheats">Enable Cheats</string>
     <string name="speed_limit">Speed Limit (0% = Unlimited)</string>
     <string name="android_hotkeys">Android Hotkeys</string>

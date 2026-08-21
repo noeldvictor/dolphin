@@ -224,6 +224,14 @@ class SettingsFragmentPresenter(
         sl.add(
             SwitchSetting(
                 context,
+                BooleanSetting.MAIN_PERFORMANCE_CORE_AFFINITY,
+                R.string.performance_core_affinity,
+                R.string.performance_core_affinity_description
+            )
+        )
+        sl.add(
+            SwitchSetting(
+                context,
                 BooleanSetting.MAIN_ENABLE_CHEATS,
                 R.string.enable_cheats,
                 0

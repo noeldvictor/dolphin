@@ -63,6 +63,11 @@ constexpr bool DEFAULT_CPU_THREAD = true;
 constexpr bool DEFAULT_CPU_THREAD = false;
 #endif
 const Info<bool> MAIN_CPU_THREAD{{System::Main, "Core", "CPUThread"}, DEFAULT_CPU_THREAD};
+// Pins the emulation threads to the fastest CPU cluster on an asymmetric (big.LITTLE) host.
+// Off by default: whether it helps depends on the device and the game, and a bad pin is worse
+// than letting the scheduler decide. See docs/research/arm64-thor-optimization.md.
+const Info<bool> MAIN_PERFORMANCE_CORE_AFFINITY{{System::Main, "Core", "PerformanceCoreAffinity"},
+                                                false};
 const Info<bool> MAIN_LOAD_GAME_INTO_MEMORY{{System::Main, "Core", "LoadGameIntoMemory"}, false};
 const Info<bool> MAIN_SYNC_ON_SKIP_IDLE{{System::Main, "Core", "SyncOnSkipIdle"}, true};
 const Info<std::string> MAIN_DEFAULT_ISO{{System::Main, "Core", "DefaultISO"}, ""};

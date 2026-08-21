@@ -101,7 +101,7 @@ wired to `CMAKE_INTERPROCEDURAL_OPTIMIZATION` at line 384. ThinLTO across
 `Core`/`VideoCommon`/`Common` is a plausible low-single-digit win for a large
 link-time cost. Worth one measured experiment, not a default.
 
-## 4. OPEN, needs measurement - thread affinity is compiled out on Android, and unused anyway
+## 4. IMPLEMENTED but unmeasured - thread affinity was compiled out on Android, and unused anyway
 
 `Source/Core/Common/Thread.cpp:122`:
 
@@ -117,6 +117,20 @@ threads that matter are named at `Source/Core/Core/Core.cpp:327` (`CPU thread`),
 `:329` (`CPU-GPU thread`) and `:473` (`Video thread`). Nothing stops the kernel
 from parking the CPU thread on a Cortex-A510, which is roughly a third of X3
 throughput on this workload.
+
+**Implemented, opt-in.** `Common::SetCurrentThreadAffinity` now works on Android - it goes
+through `sched_setaffinity(0, ...)` rather than `pthread_setaffinity_np`, which bionic only
+gained at API 26 while Dolphin's `minSdk` is 24. `Common::GetPerformanceCoreAffinityMask`
+reads each CPU's `cpufreq/cpuinfo_max_freq` and keeps the cores within 25% of the fastest,
+which on the Thor selects the X3 and the A715/A710s and drops the A510s without hardcoding a
+topology. `Config::MAIN_PERFORMANCE_CORE_AFFINITY` (Android: `Pin To Performance Cores`)
+applies it to the CPU and Video threads. **Default off, and not yet benchmarked** - see the
+caveats below, which are the reason it is not on.
+
+Note it pins to the whole performance cluster rather than to one core each, which leaves the
+scheduler room to move threads between the X3 and the A715/A710s.
+
+Original analysis:
 
 **Change:** drop the `!(defined ANDROID)` exclusion (bionic has
 `sched_setaffinity`/`pthread_setaffinity_np` and a process may always re-affine
@@ -189,17 +203,16 @@ Applied, verifiable from the build itself:
    Thor-only build.
 
 Verified on the device, not just at build time: the ARMv8.4 binary installs and
-runs on the Thor, and Dolphin's own aarch64 unit-test suite passes **1030 of 1031**
-on it (the one failure, `PatchAllowlist.VerifyHashes`, is pre-existing and unrelated
-- see AGENTS.md). No game has been booted, so the JIT and video backend have not
-been exercised on hardware.
+runs on the Thor, and Dolphin's own aarch64 unit-test suite passes **1031 of 1031**
+on it. No game has been booted, so the JIT and video backend have not been exercised
+against real guest code on hardware.
 
 Open, in the order worth doing them:
 
-4. Measure. Nothing above has been timed against a running game; do that before
-   trusting any of it.
-5. Thread affinity (section 4) - the biggest remaining lever, and the one that most
-   needs a stopwatch and a real title rather than a guess.
+4. **Measure.** Nothing here has been timed against a running game - there were no game
+   images on the device. This is the blocking item for everything below.
+5. Thread affinity (section 4) is now implemented and off by default. Turning it on is a
+   one-tap A/B once a game is available; it stays off until it earns its place.
 6. LTO (section 3) - one measured experiment.
-7. `js.fpr_is_store_safe` inference (section 5) - worth more on this device than
-   upstream, and the only item here that touches JIT correctness.
+7. `js.fpr_is_store_safe` inference (section 5) - worth more on this device than upstream,
+   and the only item here that touches JIT correctness.
