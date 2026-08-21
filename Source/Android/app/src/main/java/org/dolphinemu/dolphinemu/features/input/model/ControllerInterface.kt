@@ -168,6 +168,7 @@ object ControllerInterface {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             DolphinVibratorManagerPassthrough(device.vibratorManager)
         } else {
+            @Suppress("DEPRECATION")
             DolphinVibratorManagerCompat(device.vibrator)
         }
     }
@@ -182,6 +183,7 @@ object ControllerInterface {
                 return DolphinVibratorManagerPassthrough(vibratorManager)
             }
         }
+        @Suppress("DEPRECATION")
         val vibrator = DolphinApplication.getAppContext()
             .getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
         return DolphinVibratorManagerCompat(vibrator)

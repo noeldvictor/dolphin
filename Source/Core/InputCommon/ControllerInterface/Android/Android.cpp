@@ -587,8 +587,8 @@ private:
 class AndroidMotor : public Core::Device::Output
 {
 public:
-  AndroidMotor(JNIEnv* env, jobject vibrator, jint id)
-      : m_vibrator(env->NewGlobalRef(vibrator)), m_id(id)
+  AndroidMotor(JNIEnv* env, jobject vibrator, jint index)
+      : m_vibrator(env->NewGlobalRef(vibrator)), m_index(index)
   {
   }
 
@@ -600,7 +600,7 @@ public:
     env->DeleteGlobalRef(m_vibrator);
   }
 
-  std::string GetName() const override { return "Motor " + std::to_string(m_id); }
+  std::string GetName() const override { return "Motor " + std::to_string(m_index); }
 
   void SetState(ControlState state) override
   {
@@ -621,7 +621,7 @@ public:
 
 private:
   const jobject m_vibrator;
-  const jint m_id;
+  const jint m_index;
   std::atomic<ControlState> m_state = 0;
 };
 
@@ -814,11 +814,10 @@ private:
     jint size = env->GetArrayLength(j_vibrator_ids);
     for (jint i = 0; i < size; ++i)
     {
-      const jint vibrator_id = vibrator_ids[i];
-      jobject vibrator = env->CallObjectMethod(vibrator_manager,
-                                               s_dolphin_vibrator_manager_get_vibrator, vibrator_id);
+      jobject vibrator = env->CallObjectMethod(
+          vibrator_manager, s_dolphin_vibrator_manager_get_vibrator, vibrator_ids[i]);
       if (vibrator)
-        AddOutput(new AndroidMotor(env, vibrator, vibrator_id));
+        AddOutput(new AndroidMotor(env, vibrator, i));
       env->DeleteLocalRef(vibrator);
     }
 

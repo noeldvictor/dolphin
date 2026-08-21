@@ -356,6 +356,12 @@ object NativeLibrary {
     @JvmStatic
     external fun RunSystemMenu()
 
+    /**
+     * Begins emulation for a netplay session, using the BootSessionData provided by the host.
+     */
+    @JvmStatic
+    external fun RunNetPlay(paths: Array<String>, riivolution: Boolean, bootSessionDataPointer: Long)
+
     @JvmStatic
     external fun ChangeDisc(path: String)
 
@@ -506,7 +512,6 @@ object NativeLibrary {
     fun displayAlertMsg(
         caption: String, text: String, yesNo: Boolean, isWarning: Boolean, nonBlocking: Boolean
     ): Boolean {
-        Log.error("[NativeLibrary] Alert: $text")
         val emulationActivity = emulationActivityRef.get()
         var result = false
 
