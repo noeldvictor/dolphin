@@ -67,6 +67,14 @@ git remote set-url origin git@github.com:noeldvictor/dolphin-thor-experiment.git
 - Emulation activity and input dispatch:
   - `Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/activities/EmulationActivity.kt`
   - `dispatchKeyEvent` and `dispatchGenericMotionEvent` currently forward controller input to `ControllerInterface` when the menu is not visible.
+- Motion / gyro input:
+  - `Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/features/input/model/DolphinSensorEventListener.kt`
+  - Device sensors surface as the `Android/0/Device Sensors` device; the gyro axes are
+    `Gyro Pitch Up/Down`, `Gyro Roll Right/Left`, `Gyro Yaw Left/Right`, and the accelerometer axes are
+    `Accel Right/Left/Forward/Backward/Up/Down`. Map these to the Wii Remote IMU controls for motion games.
+  - The Thor has a real gyroscope (SENODIA `sh5001`) plus accelerometer and QTI rotation-vector fusion,
+    but **no magnetometer**, so there is no absolute heading. Verified with `adb shell dumpsys sensorservice`.
+  - Controller-attached sensors need Android 12+ (`Build.VERSION_CODES.S`); the built-in sensors do not.
 - Native input bridge:
   - `Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/features/input/model/ControllerInterface.kt`
   - `Source/Core/InputCommon/ControllerInterface/Android/Android.cpp`
@@ -105,6 +113,28 @@ For covers, GameTDB region misses are common. Prefer trying the game's primary r
 For Android hotkeys, prefer a small `EmulationActivity` helper that sees key and motion events before they are passed to `ControllerInterface`. It should be edge-triggered and debounced so holding a combo does not spam savestates. It should only consume events when an exact hotkey combo fires; otherwise normal controller input should keep flowing to the emulator. The requested default mapping is Select plus right stick up/down for save/load and Select + R for speed toggle, but confirm the exact Android key/axis codes on the AYN Thor before hardcoding. Right-stick axes can vary by device.
 
 For speed toggle, prefer toggling between normal speed (`FloatSetting.MAIN_EMULATION_SPEED = 1.0f`) and a user-configurable fast-forward percentage. Default fast-forward target is 200% (`2.0f`). If changing runtime config directly, make sure the core sees the updated value and the Settings object is saved only when persistence is intended.
+
+## Host Hardware And Reference Manuals
+
+The Thor is a Snapdragon 8 Gen 2 (`kalama`, QCS8550): 1x Cortex-X3 (cpu7), 2x Cortex-A715 (cpu3-4),
+2x Cortex-A710 (cpu5-6), 3x Cortex-A510 (cpu0-2), Adreno 740. Verified core map, CPU feature list and
+sensor inventory live in `docs/reference/thor/README.md` with the `adb` commands that reproduce them.
+Re-check the device rather than trusting a spec sheet.
+
+Vendor manuals are kept in `docs/reference/` and are **gitignored** — the PDFs are ~95MB and stay local:
+
+- `docs/reference/arm/` — Arm ARM (DDI 0487) plus the Cortex-X3/A715/A710/A510 software optimization guides,
+  and AAPCS64 notes. Architecture questions (instruction semantics, FP/NaN behaviour) go to the Arm ARM;
+  performance questions (latency, throughput, issue pipes) go to the SWOGs.
+- `docs/reference/snapdragon/` — Adreno game developer guide, 8 Gen 2 product brief, OpenCL and kernel guides.
+- `docs/reference/thor/` — AYN Thor user manual and the verified device facts.
+
+Each directory's `README.md` records provenance and how to re-fetch. Copy the PDFs from a sibling Thor
+checkout (for example `psvita/Vita3K-Thor/docs/reference/`) rather than re-downloading.
+
+Host-side ARM64 optimization opportunities in this tree are reviewed in
+`docs/research/arm64-thor-optimization.md`. Nothing in that review is applied yet; read it before changing
+build flags, and note that raising `-march` past ARMv8.0 makes the APK Thor-only.
 
 ## Build And Deploy
 
