@@ -151,6 +151,29 @@ cd Source/Android
 adb install -r app\build\outputs\apk\release\app-release.apk
 ```
 
+Native build settings that are deliberately Thor-specific:
+
+- `abiFilters` builds `arm64-v8a` only. Add `x86_64` back temporarily if you need the Android emulator.
+- The `release` build type configures CMake as `Release` (`-O3`); `debug` uses `RelWithDebInfo` (`-O2 -g`).
+  Chase native crashes with the debug build, where the symbols are.
+- `DOLPHIN_ANDROID_ARM64_CPU_TARGET` defaults to `thor`, which compiles for ARMv8.4-A
+  (`-march=armv8.4-a+crc+crypto+dotprod+fp16`) so atomics inline as LSE instead of going through clang's
+  outline-atomics stubs. This makes the APK Thor-class-only - it SIGILLs on older arm64 devices. Pass
+  `-DDOLPHIN_ANDROID_ARM64_CPU_TARGET=baseline` for a portable build.
+- Verify the arch flag actually took effect by disassembling one of our own objects and looking for
+  inline LSE atomics (`cas*`, `ldadd*`, `swp*`) rather than calls out to a stub:
+
+```powershell
+$o = "Source/Android/app/.cxx/Release/*/arm64-v8a/Source/Core/VideoCommon/CMakeFiles/videocommon.dir/Fifo.cpp.o"
+llvm-objdump -d --no-show-raw-insn (Resolve-Path $o) | Select-String '\s(casal|cas|ldaddal|ldadd|swpal|swp)\s'
+```
+
+  A `thor` build gives 17 hits in `Fifo.cpp.o`; a `baseline` build gives none. Do **not** use
+  `llvm-nm ... __aarch64_have_lse_atomics` on the linked `libmain.so` as the test - the NDK's prebuilt
+  `libc++_static` is compiled at the ARMv8.0 baseline and keeps about seven outline-atomics stubs alive
+  (`shared_ptr` refcounting) no matter what we pass. The useful signal is that the count drops from 17 to 7,
+  not that it reaches zero.
+
 The command above is a release build type signed with the local Android debug keystore for Thor sideloading. It is not a Play Store production signing key. Use Gradle's release install task once the device is visible:
 
 ```powershell
@@ -190,6 +213,29 @@ $env:Path = "$env:JAVA_HOME\bin;$env:ANDROID_HOME\platform-tools;$env:Path"
 - This clone was shallow and submodules were not initialized yet.
 
 Do not commit generated build outputs from `Source/Android/app/build`.
+
+## Running The C++ Unit Tests On The Thor
+
+The Android build already produces an aarch64 gtest binary, so the native suite can be run on the real
+device - useful whenever build flags or the JIT change, and the only real check available when no game
+images are on the device.
+
+```powershell
+$tests = Resolve-Path Source/Android/app/.cxx/Release/*/arm64-v8a/Binaries/Tests/tests
+llvm-strip -o $env:TEMP/dolphin_tests_arm64 $tests   # 248MB -> 10MB
+adb -s <serial> push $env:TEMP/dolphin_tests_arm64 /data/local/tmp/
+adb -s <serial> shell 'chmod 755 /data/local/tmp/dolphin_tests_arm64 && cd /data/local/tmp && ./dolphin_tests_arm64'
+adb -s <serial> shell 'rm -rf /data/local/tmp/dolphin_tests_arm64 /data/local/tmp/Sys'
+```
+
+Expected on 2026-08-21: **1030 of 1031 pass** in about 8 seconds.
+
+`PatchAllowlist.VerifyHashes` is the known failure, and it is **pre-existing, not a regression**. It fails
+because this fork added `Data/Sys/GameSettings/GFEP01.ini` without regenerating `Data/Sys/ApprovedInis.json`.
+That file is the RetroAchievements hardcore-mode allowlist: `AchievementManager::IsApprovedCode` disables any
+code that is not in it while hardcore is on. Regenerating it would self-approve this fork's Action Replay
+codes for hardcore achievements, so **do not regenerate it without asking** - it is a deliberate decision,
+not a chore. Leaving it failing costs nothing unless someone uses hardcore mode.
 
 ## Verification Checklist
 

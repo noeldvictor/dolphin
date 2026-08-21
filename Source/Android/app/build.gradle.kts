@@ -70,6 +70,13 @@ android {
             }
 
             resValue("string", "app_name_suffixed", "Dolphin Thor Experiment")
+
+            externalNativeBuild {
+                cmake {
+                    arguments("-DCMAKE_BUILD_TYPE=Release")
+                }
+            }
+
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -85,6 +92,12 @@ android {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
             isJniDebuggable = true
+
+            externalNativeBuild {
+                cmake {
+                    arguments("-DCMAKE_BUILD_TYPE=RelWithDebInfo")
+                }
+            }
         }
     }
 
@@ -101,15 +114,26 @@ android {
             cmake {
                 arguments(
                     "-DANDROID_STL=c++_static",
-                    "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON",
-                    "-DCMAKE_BUILD_TYPE=RelWithDebInfo"
+                    "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON"
                     // , "-DENABLE_GENERIC=ON"
                 )
-                abiFilters("arm64-v8a", "x86_64") //, "armeabi-v7a", "x86"
+                // CMAKE_BUILD_TYPE is set per build type below: Release (-O3) for the
+                // Thor release path, RelWithDebInfo (-O2 -g) for crash chasing.
+
+                // The Thor is arm64. Building x86_64 as well roughly doubles a clean
+                // native build for an ABI this fork never installs - add it back when
+                // you need the Android emulator.
+                abiFilters("arm64-v8a") //, "x86_64", "armeabi-v7a", "x86"
 
                 // Uncomment the line below if you don't want to build the C++ unit tests
                 //targets("main", "hook_impl", "main_hook", "gsl_alloc_hook", "file_redirect_hook")
             }
+        }
+
+        // Keep prebuilt .so files from AAR dependencies to arm64 as well, so the APK does
+        // not carry x86/armeabi-v7a copies of libraries we build only for arm64.
+        ndk {
+            abiFilters += listOf("arm64-v8a")
         }
     }
 

@@ -42,6 +42,10 @@ This fork intentionally diverges from a plain Dolphin Android build in several p
 - Optional AYN/Odin-style controller profiles are included for GameCube, Wii Classic Controller, and Wii Remote + Nunchuk layouts.
 - AYN Thor rumble is routed through Android game/media vibration instead of pretending every Android haptic path behaves the same.
 - The Android GPU Driver Manager can one-tap download/install the recommended Turnip ZIP from GitHub, show selectable K11MCH1/AdrenoToolsDrivers packages, install a local ZIP, or reset to the system driver.
+- **The Android build targets the AYN Thor's CPU, not generic arm64.** It is compiled for ARMv8.4-A so the
+  compiler can inline LSE atomics instead of routing every atomic through clang's outline-atomics stubs. An
+  APK built this way will crash with SIGILL on older arm64 phones rather than running slowly. Build with
+  `-DDOLPHIN_ANDROID_ARM64_CPU_TARGET=baseline` if you want a portable one. Only `arm64-v8a` is built.
 - Release builds are the normal Thor testing path because debug builds can be much slower.
 
 ## Cheat Notes

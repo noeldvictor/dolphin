@@ -106,6 +106,9 @@ option(USE_UPNP "Enables UPnP port mapping support" ON)
 option(ENABLE_NOGUI "Enable NoGUI frontend" ON)
 option(ENABLE_QT "Enable Qt (Default)" ON)
 option(ENABLE_LTO "Enables Link Time Optimization" OFF)
+set(DOLPHIN_ANDROID_ARM64_CPU_TARGET "thor" CACHE STRING
+    "Android arm64 CPU baseline: thor (ARMv8.4-A, AYN Thor only) or baseline (portable ARMv8.0-A)")
+set_property(CACHE DOLPHIN_ANDROID_ARM64_CPU_TARGET PROPERTY STRINGS thor baseline)
 option(ENABLE_GENERIC "Enables generic build that should run on any little-endian host" OFF)
 option(ENABLE_HEADLESS "Enables running Dolphin as a headless variant" OFF)
 option(ENABLE_ALSA "Enables ALSA sound backend" ON)
@@ -227,8 +230,25 @@ elseif(_ARCH_64 AND CMAKE_SYSTEM_PROCESSOR MATCHES "x64|x86_64|amd64|AMD64")
 elseif(_ARCH_64 AND CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|ARM64")
   set(_M_ARM_64 1)
   add_definitions(-D_M_ARM_64=1)
-  # CRC instruction set is used in the CRC32 hash function
-  check_and_add_flag(HAVE_ARCH_ARMV8 -march=armv8-a+crc)
+  # CRC instruction set is used in the CRC32 hash function.
+  #
+  # On Android, DOLPHIN_ANDROID_ARM64_CPU_TARGET picks how much of the architecture
+  # we are allowed to assume. "thor" targets this fork's only supported device, the
+  # AYN Thor (Snapdragon 8 Gen 2: Cortex-X3 + A715 + A710 + A510, all ARMv9). The
+  # win that pays for it is inlined LSE atomics: at the ARMv8.0 baseline clang falls
+  # back to outline-atomics, so every std::atomic read-modify-write - the CPU/GPU
+  # FIFO, Common::Flag, Common::Event - goes through a stub that loads a global and
+  # branches. ARMv8.4-A also brings RCpc acquire loads, dot product and FP16.
+  #
+  # A "thor" build SIGILLs on older arm64 devices instead of degrading. Configure
+  # with -DDOLPHIN_ANDROID_ARM64_CPU_TARGET=baseline for a portable build.
+  # See docs/research/arm64-thor-optimization.md.
+  if(ANDROID AND DOLPHIN_ANDROID_ARM64_CPU_TARGET STREQUAL "thor")
+    check_and_add_flag(HAVE_ARCH_ARMV84 -march=armv8.4-a+crc+crypto+dotprod+fp16)
+  endif()
+  if(NOT FLAG_CXX_HAVE_ARCH_ARMV84)
+    check_and_add_flag(HAVE_ARCH_ARMV8 -march=armv8-a+crc)
+  endif()
 else()
   message(FATAL_ERROR "You're building on an unsupported platform: "
       "'${CMAKE_SYSTEM_PROCESSOR}' with ${CMAKE_SIZEOF_VOID_P}-byte pointers."

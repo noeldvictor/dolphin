@@ -8,12 +8,16 @@ Everything below was checked against this tree and against the device over
 in `docs/reference/thor/README.md`; the manuals that settle latency/semantics
 questions are in `docs/reference/arm/`.
 
-**Nothing here is applied yet.** This is the review, ranked by
-(expected win) / (effort x risk).
+Ranked by (expected win) / (effort x risk). Items 1, 2 and 7 are **applied**; the
+rest are open, and the ones that need on-device measurement say so.
+
+Each heading carries its status. Nothing here has been measured on a running game
+yet - the applied items are the ones whose effect can be verified from the build
+output itself.
 
 ---
 
-## 1. The build targets baseline ARMv8-A, so every atomic goes through a dispatch stub
+## 1. APPLIED - the build targeted baseline ARMv8-A, so every atomic went through a dispatch stub
 
 `CMakeLists.txt:231` sets the only ARM64 arch flag in the tree:
 
@@ -52,12 +56,30 @@ which also tunes scheduling for the prime core the CPU thread should be on).
 Beyond inlined LSE this exposes FP16, dotprod, FEAT_FRINTTS and RCpc loads to
 the compiler.
 
+**Applied** as `DOLPHIN_ANDROID_ARM64_CPU_TARGET` in `CMakeLists.txt`, defaulting to
+`thor` = `-march=armv8.4-a+crc+crypto+dotprod+fp16`. Set it to `baseline` to get the
+old portable ARMv8.0-A flag back. Verify a build actually took the flag by checking
+that `__aarch64_have_lse_atomics` is gone from `libmain.so` - if it is still there,
+the build fell back.
+
+**Measured result of the change**, comparing the same object file before and after:
+
+| | `-march=armv8-a+crc` | `-march=armv8.4-a+...` |
+|---|---:|---:|
+| inline LSE atomics in `VideoCommon/Fifo.cpp.o` | 0 | **17** |
+| LL/SC pairs in the same object | 0 | 0 |
+| outline-atomics stubs in the linked `libmain.so` | 17 | **7** |
+
+The seven that survive are in the NDK's prebuilt `libc++_static` (`shared_ptr`
+refcounting), which is compiled at the ARMv8.0 baseline and is not ours to
+rebuild. Everything Dolphin itself compiles now uses the instruction directly.
+
 **Cost:** the APK stops running on pre-ARMv8.4 arm64 devices — it will `SIGILL`,
 not degrade. That is consistent with the project brief ("a personal-use AYN Thor
 Android fork, not a general Android compatibility promise") but it must be said
 out loud in `Readme.md` if we take it.
 
-## 2. The release build is `-O2 -g`, not `-O3`
+## 2. APPLIED - the release build was `-O2 -g`, not `-O3`
 
 `Source/Android/app/build.gradle.kts:105` passes
 `-DCMAKE_BUILD_TYPE=RelWithDebInfo`, which is CMake's `-O2 -g -DNDEBUG`. A
@@ -66,17 +88,20 @@ vectorization and more aggressive inlining, which matters for the software
 renderer paths, the audio mixer and `VideoCommon` vertex loaders more than for
 JIT-generated code.
 
+**Applied:** `CMAKE_BUILD_TYPE` moved out of `defaultConfig` and set per build type -
+`release` is now `Release`, `debug` stays `RelWithDebInfo`.
+
 Keep `RelWithDebInfo` available for crash chasing — this should be a switch, not
 a replacement. AGENTS.md already says release builds are the normal Thor path.
 
-## 3. LTO is available and off
+## 3. OPEN - LTO is available and off
 
 `CMakeLists.txt:108` — `option(ENABLE_LTO "Enables Link Time Optimization" OFF)`,
 wired to `CMAKE_INTERPROCEDURAL_OPTIMIZATION` at line 384. ThinLTO across
 `Core`/`VideoCommon`/`Common` is a plausible low-single-digit win for a large
 link-time cost. Worth one measured experiment, not a default.
 
-## 4. Thread affinity is compiled out on Android — and unused anyway
+## 4. OPEN, needs measurement - thread affinity is compiled out on Android, and unused anyway
 
 `Source/Core/Common/Thread.cpp:122`:
 
@@ -101,7 +126,7 @@ respecting: the vendor scheduler and thermal governor will fight a hard pin, and
 a wrong pin is *worse* than none. This needs on-device measurement per game, not
 a guess.
 
-## 5. FEAT_AFP is absent on this SoC — the FP slow path is permanent here
+## 5. WON'T FIX in software - FEAT_AFP is absent on this SoC, so the FP slow path is permanent here
 
 The Thor's feature list has no `afp` (and no SVE). So `cpu_info.bAFP` is false,
 and three places take the slower branch:
@@ -119,7 +144,7 @@ than the same work upstream would be worth on newer silicon. That is a real
 optimization target, and it is a JIT-correctness-sensitive one — the Arm ARM in
 `docs/reference/arm/` is the manual that settles it.
 
-## 6. The emitter has no LSE or FRINTTS encodings — low priority
+## 6. OPEN, low priority - the emitter has no LSE or FRINTTS encodings
 
 `Source/Core/Common/Arm64Emitter.h` exposes `LDAXR`/`STLXR` and no `CAS*`,
 `LDADD*` or `SWP*`. The Thor supports all of them (`atomics`), but the JIT only
@@ -128,10 +153,14 @@ titles. Similarly `frint` (FEAT_FRINTTS) is present, but `FRINT32Z`/`FRINT64Z`
 saturate differently from PowerPC `fctiwz`, so it is not a drop-in for the
 float→int conversion path. Both are "correct but probably not worth it".
 
-## 7. Build hygiene: we compile a second ABI we cannot run
+## 7. APPLIED - build hygiene: we compiled a second ABI we cannot run
 
 `Source/Android/app/build.gradle.kts:108` builds `arm64-v8a` **and** `x86_64`.
-The Thor is arm64. A full `:app:assembleRelease` from clean is ~23 minutes here;
+The Thor is arm64. **Applied:** `abiFilters` is now `arm64-v8a` only.
+
+The release APK also drops from 23.9MB to 16.7MB.
+
+A full `:app:assembleRelease` from clean was ~23 minutes here;
 roughly half of that is an ABI that never gets installed. No runtime effect —
 but it halves the edit/build/test loop, which is why it is on this list.
 
@@ -150,12 +179,27 @@ but it halves the edit/build/test loop, which is why it is on this list.
   Adreno 740 tiling/binning behaviour is in
   `docs/reference/snapdragon/adreno-game-developer-guide.pdf`.
 
-## Suggested order
+## Status
 
-1. Drop `x86_64` from `abiFilters` (free, halves build time).
-2. `Release` instead of `RelWithDebInfo` for the Thor release path.
-3. Raise `-march`/`-mcpu` for the Android arm64 build, and say so in `Readme.md`.
-4. Measure. Only then: thread affinity, then LTO.
+Applied, verifiable from the build itself:
 
-Steps 1-3 are mechanical. Step 4 is where the actual wins are, and it is the one
-that cannot be done without the device and a stopwatch.
+1. `abiFilters` is `arm64-v8a` only.
+2. The release path configures CMake as `Release` (`-O3`), debug as `RelWithDebInfo`.
+3. Android arm64 compiles for ARMv8.4-A by default, documented in `Readme.md` as a
+   Thor-only build.
+
+Verified on the device, not just at build time: the ARMv8.4 binary installs and
+runs on the Thor, and Dolphin's own aarch64 unit-test suite passes **1030 of 1031**
+on it (the one failure, `PatchAllowlist.VerifyHashes`, is pre-existing and unrelated
+- see AGENTS.md). No game has been booted, so the JIT and video backend have not
+been exercised on hardware.
+
+Open, in the order worth doing them:
+
+4. Measure. Nothing above has been timed against a running game; do that before
+   trusting any of it.
+5. Thread affinity (section 4) - the biggest remaining lever, and the one that most
+   needs a stopwatch and a real title rather than a guess.
+6. LTO (section 3) - one measured experiment.
+7. `js.fpr_is_store_safe` inference (section 5) - worth more on this device than
+   upstream, and the only item here that touches JIT correctness.
