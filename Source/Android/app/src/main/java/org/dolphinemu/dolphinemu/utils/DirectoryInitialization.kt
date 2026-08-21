@@ -42,6 +42,7 @@ object DirectoryInitialization {
     private var areDirectoriesAvailable = false
 
     private lateinit var userPath: String
+    private lateinit var sysPath: String
     private lateinit var driverPath: String
     private var usingLegacyUserDirectory = false
 
@@ -147,8 +148,10 @@ object DirectoryInitialization {
             }
         }
 
+        sysPath = sysDirectory.path
+
         // Let the native code know where the Sys directory is.
-        SetSysDirectory(sysDirectory.path)
+        SetSysDirectory(sysPath)
 
         val driverDirectory = File(context.filesDir, "GPUDrivers")
         driverDirectory.mkdirs()
@@ -202,6 +205,17 @@ object DirectoryInitialization {
         }
 
         return userPath
+    }
+
+    @JvmStatic
+    fun getSysDirectory(): String {
+        if (!areDirectoriesAvailable) {
+            throw IllegalStateException(
+                "DirectoryInitialization must run before accessing the Sys directory!"
+            )
+        }
+
+        return sysPath
     }
 
     @JvmStatic
