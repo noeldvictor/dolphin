@@ -22,6 +22,7 @@ import sys
 import traceback
 from typing import Any, Callable
 
+from device import AdbDevice, DeviceError
 from gdb_client import (
     NAMED_REGISTERS,
     REGIONS,
@@ -50,8 +51,9 @@ class ToolError(Exception):
 
 
 class DolphinMcpServer:
-    def __init__(self, host: str, port: int):
+    def __init__(self, host: str, port: int, serial: str | None = None):
         self._client = GdbClient(host=host, port=port)
+        self._adb = AdbDevice(serial=serial)
         self._tools: dict[str, tuple[dict[str, Any], Callable[..., str]]] = {}
         self._register_tools()
 
@@ -68,6 +70,9 @@ class DolphinMcpServer:
                     f"that `adb forward tcp:{self._client.port} tcp:{self._client.port}` is active."
                 ) from exc
         return self._client
+
+    def _device(self) -> AdbDevice:
+        return self._adb
 
     # -- tools --------------------------------------------------------------
 
@@ -306,6 +311,96 @@ class DolphinMcpServer:
             reply = gdb.step()
             return f"stepped; stop reply {reply}, PC now {gdb.read_register(64):#010x}"
 
+        # -- device tools, which work with or without the GDB stub ----------
+
+        @tool(
+            "device_status",
+            "Is a device attached, is Dolphin running, and is another emulator "
+            "using it? This device is shared with other projects, so check before "
+            "trusting anything timed on it.",
+            obj({}, []),
+        )
+        def device_status() -> str:
+            device = self._device()
+            busy = device.busy_emulators()
+            lines = [
+                f"model: {device.model()}",
+                f"Dolphin running: {'yes' if device.app_running() else 'no'}",
+                f"other emulators using CPU: {busy}",
+            ]
+            if busy:
+                lines.append(
+                    "NOTE: another emulator is active. Timings taken now are not "
+                    "trustworthy, and it may force-stop Dolphin mid-run."
+                )
+            return "\n".join(lines)
+
+        @tool(
+            "screenshot",
+            "Capture what is on the device screen right now, as an image.",
+            obj({}, []),
+        )
+        def screenshot() -> list[dict[str, Any]]:
+            import base64
+
+            png = self._device().screenshot()
+            return [
+                {
+                    "type": "image",
+                    "data": base64.b64encode(png).decode("ascii"),
+                    "mimeType": "image/png",
+                }
+            ]
+
+        @tool(
+            "press_buttons",
+            "Press controller buttons together, held as a chord. Injected into the "
+            "gamepad's own event node, so the emulator sees ordinary hardware input.",
+            obj(
+                {
+                    "buttons": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Button names, e.g. ['select','r1']. Pressed in "
+                        "order and released in reverse, so the first is held.",
+                    },
+                    "hold_ms": {"type": "integer", "description": "How long to hold. Default 200."},
+                },
+                ["buttons"],
+            ),
+        )
+        def press_buttons(buttons: list[str], hold_ms: int = 200) -> str:
+            return self._device().press_buttons(buttons, hold_ms)
+
+        @tool(
+            "hotkey",
+            "Send one of this fork's Android hotkeys by name: quick_save, "
+            "quick_load or speed_toggle.",
+            obj(
+                {
+                    "name": {
+                        "type": "string",
+                        "enum": ["quick_save", "quick_load", "speed_toggle"],
+                    }
+                },
+                ["name"],
+            ),
+        )
+        def hotkey(name: str) -> str:
+            return self._device().hotkey(name)
+
+        @tool(
+            "list_savestates",
+            "List the savestate files on the device. A new file after a quick_save "
+            "is durable proof the hotkey fired, which survives the app being killed.",
+            obj({}, []),
+        )
+        def list_savestates() -> str:
+            states = self._device().list_savestates()
+            if not states:
+                return "no savestates"
+            return f"{len(states)} savestate(s):\n" + "\n".join(f"  {s}" for s in states)
+
     def _scan(self, needle: bytes, region: str, alignment: int) -> list[int]:
         if region not in REGIONS:
             raise ToolError(f"unknown region {region!r}; expected mem1 or mem2")
@@ -381,9 +476,14 @@ class DolphinMcpServer:
             return self._error(msg_id, -32602, f"unknown tool {name!r}")
         _, fn = entry
         try:
-            text = fn(**arguments)
-            return self._result(msg_id, {"content": [{"type": "text", "text": text}]})
-        except (ToolError, GdbError, ValueError) as exc:
+            produced = fn(**arguments)
+            # A tool may return plain text, or ready-made content blocks when it
+            # has something richer to say - a screenshot, for instance.
+            content = produced if isinstance(produced, list) else [
+                {"type": "text", "text": produced}
+            ]
+            return self._result(msg_id, {"content": content})
+        except (ToolError, GdbError, DeviceError, ValueError) as exc:
             return self._result(
                 msg_id,
                 {"content": [{"type": "text", "text": f"{exc}"}], "isError": True},
@@ -429,8 +529,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=2159)
+    parser.add_argument("--serial", default=None, help="adb device serial")
     args = parser.parse_args()
-    DolphinMcpServer(args.host, args.port).serve()
+    DolphinMcpServer(args.host, args.port, args.serial).serve()
     return 0
 
 

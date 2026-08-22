@@ -57,6 +57,8 @@ Then call `status`, and `resume` to let the game run.
 
 ## Tools
 
+**Guest state, through the GDB stub:**
+
 | tool | what it does |
 |---|---|
 | `status` | Is the stub reachable, what is the CPU doing, where is PC |
@@ -67,6 +69,23 @@ Then call `status`, and `resume` to let the game run.
 | `set_watchpoint` / `clear_watchpoint` | Break when the guest reads or writes an address |
 | `resume` / `pause` / `step` | Run, break in, single-step |
 
+**The device around it, through adb.** These need no stub, so they work during
+ordinary play - useful on their own, and the reason the server is worth running
+even when you do not want a paused boot:
+
+| tool | what it does |
+|---|---|
+| `screenshot` | What is on screen right now, as an image the model can actually see |
+| `press_buttons` | Press buttons as a held chord, injected into the gamepad's event node |
+| `hotkey` | `quick_save`, `quick_load` or `speed_toggle`, by name |
+| `list_savestates` | Savestate files - a new one is durable proof a quick save fired |
+| `device_status` | Is Dolphin running, and is another emulator competing for the device |
+
+Input goes through `sendevent` on the pad's own node rather than `input
+keyevent`, because `input keyevent` sends a down and an up together and so
+cannot hold Select while pressing R1 - which is the shape of every hotkey this
+fork adds. Shell is in the `input` group and the nodes are mode 660
+`root:input`, so no root is needed.
 ### Finding a cheat
 
 The classic scanner loop, with the AI driving it:
@@ -96,14 +115,17 @@ the 32 GPRs, so everything else goes through `p`.
 ```powershell
 python Tools/mcp/test_dolphin_mcp.py     # 31 tests - the server itself
 python Tools/mcp/test_stub_contract.py   # 12 tests - our assumptions about Dolphin
+python Tools/mcp/test_device.py          # 16 tests - the adb and input layer
 ```
 
-Neither needs a device or a running emulator.
+None of them needs a device or a running emulator.
 
 `test_dolphin_mcp.py` runs the server against a fake stub, covering the packet
 framing, read chunking, big-endian encoding, scan-window overlap (a value
 straddling a window boundary must still be found) and the full JSON-RPC round
 trip including malformed input.
+
+`test_device.py` covers the input synthesis, where the subtle part is chord ordering - a modifier has to go down first and come up last, and the stick must be returned to centre or the guest sees it held forever.
 
 `test_stub_contract.py` is the one that earns its keep over time. `gdb_client.py`
 hardcodes facts read out of `GDBStub.cpp` - the packet buffer size that caps a
