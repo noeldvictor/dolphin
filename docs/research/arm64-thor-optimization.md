@@ -233,36 +233,39 @@ the thing that was changed.
 So the ARMv8.4 build is justified by what it demonstrably does to the generated code, and by
 nothing more than that so far. A real title is still the only way to know whether it matters.
 
-### First affinity numbers: pinning looks slightly harmful
+### Affinity measured: no difference on this title
 
 `Tools/benchmark-android-affinity.sh` boots the same title with the setting off
 and on, interleaved, with emulation uncapped (`EmulationSpeed = 0`) so the frame
 rate is raw throughput rather than a flat 60 that would hide any difference.
 
-| affinity | frames in 20s |
-|---|---|
-| off | 8453, 8365 |
-| on | 7766 |
+| affinity | frames in 20s | median |
+|---|---|---:|
+| off | 8397, 8382 | 8389 |
+| on | 8445, 8300 | 8372 |
 
-That is roughly **8% slower with pinning** - about 420 versus 388 emulated frames
-per second. One clean pair is a signal, not a conclusion, and a fourth run failed
-to boot and was discarded rather than counted (see below).
+**0% difference**, with the two configurations overlapping inside a spread of
+8300 to 8445. Pinning the CPU and Video threads to the performance cluster
+neither helps nor hurts this title measurably.
 
-The direction is not surprising on reflection. Section 4 argued that the scheduler
-parking the CPU thread on an A510 costs more than anything software can win back,
-and that is still true - but pinning to the performance cluster also stops the
-scheduler from spreading Dolphin's *other* threads (audio, IO, JIT compilation,
-the Vulkan driver's own workers) across the little cores. On this title the second
-effect appears to dominate.
+So section 4's premise - that the scheduler parking an emulation thread on a
+Cortex-A510 costs real speed - is not visible here. The likeliest explanation is
+that Android's scheduler already puts the busy threads where they belong without
+being told, which is what a modern EAS scheduler is for.
 
-**This is why the setting ships off.** It was never enabled by default, so nothing
-depends on the guess that turned out to point the wrong way.
+**The setting stays off by default**, and now on evidence rather than caution.
 
-A caution about the harness rather than the hardware: the first run of this
-benchmark reported a confident "53% slower with pinning" because one of its four
-runs never booted a game, and a zero-frame result was folded into the median as
-though it were a slow one. A failed run is not data. The script now retries below
-a validity floor and refuses to publish half a comparison.
+Two false starts worth recording, because both produced confident numbers that
+were wrong:
+
+- An earlier partial run reported **8% slower with pinning**. That rested on a
+  single `on` sample against two `off` samples, and the full run shows it was
+  noise. One clean pair is not a measurement.
+- The run before that reported **53% slower with pinning**, because one of its
+  four runs never booted a game and the zero-frame result was folded into the
+  median as though the emulator had merely been slow. A failed run is not data;
+  the script now retries below a validity floor and refuses to publish half a
+  comparison.
 
 ### The device is shared, which makes on-device timing hard
 

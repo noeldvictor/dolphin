@@ -147,8 +147,14 @@ checkout (for example `psvita/Vita3K-Thor/docs/reference/`) rather than re-downl
 Thread placement: `Config::MAIN_PERFORMANCE_CORE_AFFINITY` (`Pin To Performance Cores` in Android's general
 settings, off by default) pins the CPU and Video threads to the host's fastest CPU cluster.
 `Common::GetPerformanceCoreAffinityMask` derives that cluster from cpufreq rather than hardcoding a
-topology, so on the Thor it selects the X3 plus the A715/A710 cores and drops the A510s. **This has not
-been benchmarked against a running game.** Treat it as something to A/B per title, not as a default.
+topology, so on the Thor it selects the X3 plus the A715/A710 cores and drops the A510s.
+
+**Measured on 2026-08-21: it makes no difference.** Uncapped and interleaved, the medians were 8389 frames
+in 20s with pinning off and 8372 with it on - 0%, with both configurations inside the same spread. Android's
+scheduler apparently already places the busy threads well. The setting stays off by default on evidence, not
+caution. Re-measure with `Tools/benchmark-android-affinity.sh` before believing otherwise, and read the two
+false starts in `docs/research/arm64-thor-optimization.md` first - both produced confident numbers that were
+wrong.
 
 Host-side ARM64 optimization opportunities in this tree are reviewed in
 `docs/research/arm64-thor-optimization.md`. Nothing in that review is applied yet; read it before changing
