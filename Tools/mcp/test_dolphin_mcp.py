@@ -40,9 +40,15 @@ class FakeStub:
         self.pc = 0x80003100
         self.sent = bytearray()
         self.reads: list[tuple[int, int]] = []
+        self.running = False
 
     # socket-ish interface used by GdbClient
     def sendall(self, payload: bytes) -> None:
+        # A bare 0x03 is a break request, not a packet: the stub answers it with
+        # a stop reply (SendSignal in GDBStub.cpp).
+        if payload == b"\x03":
+            self._queue(self._frame("T05" + "40" + ":" + f"{self.pc:08x}" + ";"))
+            return
         self.sent.extend(payload)
         while b"#" in self.sent:
             start = self.sent.find(b"$")
@@ -55,7 +61,9 @@ class FakeStub:
             body = self.sent[start + 1 : end].decode("ascii")
             del self.sent[: end + 3]
             self._queue(b"+")
-            self._queue(self._frame(self._respond(body)))
+            reply = self._respond(body)
+            if reply is not None:
+                self._queue(self._frame(reply))
 
     def recv(self, _size: int) -> bytes:
         out = bytes(self._outbox)
@@ -105,6 +113,9 @@ class FakeStub:
             return "OK"
         if body == "s":
             return "S05"
+        if body == "c":
+            self.running = True
+            return None  # the real stub says nothing until it stops
         return ""
 
 
@@ -327,6 +338,45 @@ class McpProtocolTest(unittest.TestCase):
         ) + "\n"
         self.server.serve(io.StringIO(session), out)
         self.assertEqual(json.loads(out.getvalue())["id"], 7)
+
+
+class ExecutionStateTest(unittest.TestCase):
+    """resume/pause must not desynchronise the connection.
+
+    The stub acks the `c` packet and then says nothing until the guest stops.
+    If that ack is left unread, the next command takes it as its own and then
+    reads the following stop reply as its result - and every reply after that
+    is off by one, silently returning the previous command's answer.
+    """
+
+    def setUp(self):
+        self.stub = FakeStub(0x80000000, bytes(range(256)))
+        self.client = client_for(self.stub)
+
+    def test_resume_consumes_its_ack(self):
+        self.client.resume()
+        # The ack must have been taken off the wire, not left sitting in the
+        # stub's outbox for the next command to mistake for its own.
+        self.assertEqual(
+            bytes(self.stub._outbox), b"", "resume left its ack unread on the wire"
+        )
+
+    def test_command_while_running_is_refused_not_hung(self):
+        self.client.resume()
+        with self.assertRaises(GdbError) as caught:
+            self.client.read_memory(0x80000000, 4)
+        self.assertIn('pause', str(caught.exception))
+
+    def test_pause_reads_the_stop_reply_and_resyncs(self):
+        self.client.resume()
+        reply = self.client.interrupt()
+        self.assertTrue(reply.startswith('T05'), reply)
+        # The connection must be usable again, and give the right answer.
+        self.assertEqual(self.client.read_memory(0x80000010, 4), bytes([16, 17, 18, 19]))
+
+    def test_interrupt_when_already_stopped_is_a_no_op(self):
+        self.assertEqual(self.client.interrupt(), 'already stopped')
+        self.assertEqual(self.client.read_memory(0x80000000, 2), bytes([0, 1]))
 
 
 class ConnectionErrorTest(unittest.TestCase):

@@ -301,9 +301,9 @@ class DolphinMcpServer:
 
         @tool("pause", "Break into the debugger, pausing the game.", obj({}, []))
         def pause() -> str:
-            gdb = self._gdb()
-            gdb.interrupt()
-            return f"paused; {gdb.halt_reason()}"
+            # interrupt() returns the stop reply the stub sends on a break, so
+            # there is no need to ask for it separately.
+            return f"paused; {self._gdb().interrupt()}"
 
         @tool("step", "Execute a single guest instruction.", obj({}, []))
         def step() -> str:

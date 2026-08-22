@@ -78,6 +78,9 @@ class GdbClient:
         self.timeout = timeout
         self._sock: socket.socket | None = None
         self._buf = bytearray()
+        # True between a resume and the next stop: the stub owes us nothing until
+        # then, so issuing a command would block forever.
+        self._running = False
 
     # -- connection ---------------------------------------------------------
 
@@ -88,6 +91,7 @@ class GdbClient:
         sock.settimeout(self.timeout)
         self._sock = sock
         self._buf.clear()
+        self._running = False
 
     def close(self) -> None:
         if self._sock is not None:
@@ -96,6 +100,7 @@ class GdbClient:
             finally:
                 self._sock = None
                 self._buf.clear()
+                self._running = False
 
     @property
     def connected(self) -> bool:
@@ -145,8 +150,21 @@ class GdbClient:
         self._send_raw(b"+")
         return text
 
+    def _expect_ack(self) -> None:
+        """Consume the stub's `+` for a packet we sent, tolerating a stray NAK."""
+        byte = self._read_byte()
+        if byte in (ord("+"), ord("-")):
+            return
+        # Not an ack: hand it back for whoever reads next.
+        self._buf.insert(0, byte)
+
     def command(self, payload: str) -> str:
         """Send one packet and return the reply, retrying once on a NAK."""
+        if self._running:
+            raise GdbError(
+                "the guest is running, so the stub will not answer until it stops. "
+                "Call pause first."
+            )
         for attempt in (0, 1):
             self._send_packet(payload)
             byte = self._read_byte()
@@ -215,14 +233,30 @@ class GdbClient:
         return self.command("?")
 
     def resume(self) -> str:
-        """Let the guest run. The stub does not reply until it stops again."""
+        """Let the guest run.
+
+        The stub acks the packet and then says nothing until the guest stops, so
+        the ack has to be consumed here. Leaving it in the buffer would make the
+        *next* command read it as its own ack and then take the following stop
+        reply as its result, desynchronising the connection for good.
+        """
         self._send_packet("c")
+        self._expect_ack()
+        self._running = True
         return "resumed"
 
     def interrupt(self) -> str:
-        """Break into the stub with a raw 0x03, the way gdb's ^C does."""
+        """Break into the stub with a raw 0x03, the way gdb's ^C does.
+
+        The stub answers a break with a `T05` stop reply (`SendSignal` in
+        GDBStub.cpp), which must be read here for the same reason.
+        """
+        if not self._running:
+            return "already stopped"
         self._send_raw(b"\x03")
-        return "interrupt requested"
+        reply = self._read_packet()
+        self._running = False
+        return reply
 
     def step(self) -> str:
         return self.command("s")
