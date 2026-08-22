@@ -94,10 +94,25 @@ the 32 GPRs, so everything else goes through `p`.
 ## Tests
 
 ```powershell
-python Tools/mcp/test_dolphin_mcp.py
+python Tools/mcp/test_dolphin_mcp.py     # 31 tests - the server itself
+python Tools/mcp/test_stub_contract.py   # 12 tests - our assumptions about Dolphin
 ```
 
-28 tests, no device or emulator needed - a fake stub stands in for Dolphin, so
-the protocol handling, the read chunking and the scan windowing are all checked
-offline. What they cannot check is that the real stub agrees with our reading
-of `GDBStub.cpp`; that needs a game running on hardware.
+Neither needs a device or a running emulator.
+
+`test_dolphin_mcp.py` runs the server against a fake stub, covering the packet
+framing, read chunking, big-endian encoding, scan-window overlap (a value
+straddling a window boundary must still be found) and the full JSON-RPC round
+trip including malformed input.
+
+`test_stub_contract.py` is the one that earns its keep over time. `gdb_client.py`
+hardcodes facts read out of `GDBStub.cpp` - the packet buffer size that caps a
+read, the register ids behind `p`, which commands exist, and the fact that
+enabling the stub forces a paused boot. Upstream owns all of that, and this fork
+merges upstream regularly; a sync has already deleted a method out from under
+code that needed it. So these tests parse the stub and fail if it stops matching.
+**A failure there is not a bug in this server** - it means upstream changed the
+stub and the client needs updating to match.
+
+What no test here can check is that the live stub agrees with our reading of it.
+That needs a game running on hardware.

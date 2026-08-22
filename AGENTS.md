@@ -246,7 +246,9 @@ Setup, the tool list and the cheat-finding loop are in `Tools/mcp/README.md`. Th
 not read it: enabling `GDBPort` makes a boot **block until a client attaches**, the game then starts
 **paused** until `resume`, and the stub is disabled under RetroAchievements hardcore mode.
 
-Run `python Tools/mcp/test_dolphin_mcp.py` after touching it - 28 tests, no device needed.
+After touching it run both suites, neither of which needs a device: `python Tools/mcp/test_dolphin_mcp.py`
+(31 tests, the server) and `python Tools/mcp/test_stub_contract.py` (12 tests, which parse `GDBStub.cpp` and fail
+if an upstream merge changes the assumptions the client hardcodes).
 
 ## Verified Input Axes On The Thor
 

@@ -15,6 +15,7 @@ import json
 import os
 import sys
 import unittest
+import unittest.mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -263,6 +264,50 @@ class McpProtocolTest(unittest.TestCase):
 
     def test_unknown_method_errors(self):
         self.assertEqual(self.call("tools/nope")["error"]["code"], -32601)
+
+    def test_scanning_an_unmapped_region_says_so_clearly(self):
+        # The fake stub only maps mem1, so a mem2 scan is the GameCube case.
+        reply = self.call(
+            "tools/call",
+            {"name": "search_memory",
+             "arguments": {"value": 42, "type": "u32", "region": "mem2"}},
+        )
+        text = reply["result"]["content"][0]["text"]
+        self.assertTrue(reply["result"]["isError"])
+        self.assertIn("mem2 only exists on Wii", text)
+
+    def test_search_finds_a_known_value(self):
+        # Scope mem1 to what the fake stub actually maps; the real region is 24 MiB
+        # and scanning it here would only be measuring the fake.
+        import dolphin_mcp
+
+        small = {"mem1": (0x80000000, 4096), "mem2": (0x90000000, 4096)}
+        with unittest.mock.patch.dict(dolphin_mcp.REGIONS, small, clear=True):
+            reply = self.call(
+                "tools/call",
+                {"name": "search_memory", "arguments": {"value": 42, "type": "u32"}},
+            )
+        self.assertNotIn("isError", reply["result"])
+        self.assertIn("0x80000000", reply["result"]["content"][0]["text"])
+
+    def test_search_respects_alignment_by_default(self):
+        import dolphin_mcp
+
+        # 42 as a u32 also appears unaligned at 0x80000001 in the seeded data.
+        self.stub.data[0:8] = b"\x00\x00\x00\x00\x00\x2a\x00\x00"
+        small = {"mem1": (0x80000000, 4096), "mem2": (0x90000000, 4096)}
+        with unittest.mock.patch.dict(dolphin_mcp.REGIONS, small, clear=True):
+            aligned = self.call(
+                "tools/call",
+                {"name": "search_memory", "arguments": {"value": 42, "type": "u32"}},
+            )["result"]["content"][0]["text"]
+            unaligned = self.call(
+                "tools/call",
+                {"name": "search_memory",
+                 "arguments": {"value": 42, "type": "u32", "aligned": False}},
+            )["result"]["content"][0]["text"]
+        self.assertIn("no matches", aligned)
+        self.assertIn("0x80000002", unaligned)
 
     def test_serve_handles_a_full_line_oriented_session(self):
         lines = [

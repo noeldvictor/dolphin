@@ -311,6 +311,23 @@ class DolphinMcpServer:
             raise ToolError(f"unknown region {region!r}; expected mem1 or mem2")
         start, size = REGIONS[region]
         gdb = self._gdb()
+
+        # Fail fast on a region that is not mapped at all, rather than grinding
+        # through thousands of rejected reads and reporting a bland "no matches".
+        # The usual cause is scanning mem2 while a GameCube game is running.
+        try:
+            gdb.read_memory(start, 4)
+        except GdbError as exc:
+            hint = (
+                " mem2 only exists on Wii; a GameCube game has mem1 only."
+                if region == "mem2"
+                else ""
+            )
+            raise ToolError(
+                f"{region} is not readable at {start:#010x} ({exc}).{hint} "
+                f"Is a game actually running?"
+            ) from exc
+
         overlap = max(len(needle) - 1, 0)
         hits: list[int] = []
         seen: set[int] = set()
@@ -318,8 +335,8 @@ class DolphinMcpServer:
             try:
                 block = gdb.read_memory(address, length)
             except GdbError:
-                # Unmapped holes are normal; skip them rather than aborting a scan
-                # that is otherwise fine.
+                # Unmapped holes inside an otherwise valid region are normal;
+                # skip them rather than aborting a scan that is otherwise fine.
                 continue
             for hit in find_all(block, needle, address, alignment):
                 if hit not in seen:
