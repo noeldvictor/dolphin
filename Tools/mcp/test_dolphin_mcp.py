@@ -23,9 +23,11 @@ from dolphin_mcp import DolphinMcpServer  # noqa: E402
 from gdb_client import (  # noqa: E402
     GdbClient,
     GdbError,
+    decode_value,
     encode_value,
     find_all,
     iter_region_chunks,
+    value_size,
     _checksum,
 )
 
@@ -189,6 +191,42 @@ class EncodingTest(unittest.TestCase):
     def test_rejects_unknown_type(self):
         with self.assertRaises(ValueError):
             encode_value(1, "u128")
+
+
+class ValueTableTest(unittest.TestCase):
+    """encode, decode and size must agree - they share one table so they cannot drift."""
+
+    def test_round_trip_for_every_type(self):
+        cases = {
+            "u8": 200, "s8": -50, "u16": 40000, "s16": -12345,
+            "u32": 3000000000, "s32": -2000000, "u64": 2**40, "s64": -(2**40),
+        }
+        for value_type, value in cases.items():
+            with self.subTest(type=value_type):
+                raw = encode_value(value, value_type)
+                self.assertEqual(len(raw), value_size(value_type))
+                self.assertEqual(decode_value(raw, value_type), value)
+
+    def test_float_round_trip(self):
+        for value_type in ("f32", "f64"):
+            with self.subTest(type=value_type):
+                raw = encode_value(0.5, value_type)
+                self.assertEqual(decode_value(raw, value_type), 0.5)
+
+    def test_sizes_are_what_the_names_claim(self):
+        self.assertEqual([value_size(t) for t in ("u8", "u16", "u32", "u64")], [1, 2, 4, 8])
+
+    def test_decode_rejects_the_wrong_length(self):
+        with self.assertRaises(ValueError):
+            decode_value(bytes([0, 1]), "u32")
+
+    def test_every_advertised_type_is_usable(self):
+        # The tool schema advertises a fixed list; each entry must really work.
+        server = DolphinMcpServer('127.0.0.1', 1)
+        advertised = server._tools['read_value'][0]['inputSchema']['properties']['type']['enum']
+        for value_type in advertised:
+            with self.subTest(type=value_type):
+                self.assertGreater(value_size(value_type), 0)
 
 
 class ScanHelperTest(unittest.TestCase):

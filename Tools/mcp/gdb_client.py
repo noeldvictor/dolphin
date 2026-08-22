@@ -293,32 +293,59 @@ class GdbClient:
             raise ValueError(f"unknown breakpoint kind {kind!r}; expected one of {valid}") from None
 
 
-def encode_value(value: int | float, value_type: str) -> bytes:
-    """Encode a scalar the way the guest stores it.
+# The one place that knows how guest scalars are laid out. Everything big
+# endian, because GameCube and Wii are - the detail that trips up anyone coming
+# from a little endian memory scanner.
+VALUE_FORMATS = {
+    "u8": ">B",
+    "s8": ">b",
+    "u16": ">H",
+    "s16": ">h",
+    "u32": ">I",
+    "s32": ">i",
+    "u64": ">Q",
+    "s64": ">q",
+    "f32": ">f",
+    "f64": ">d",
+}
 
-    GameCube and Wii are big endian, which is the detail that trips up anyone
-    coming from a little endian memory scanner.
-    """
+
+def _format_for(value_type: str) -> str:
+    try:
+        return VALUE_FORMATS[value_type]
+    except KeyError:
+        valid = ", ".join(VALUE_FORMATS)
+        raise ValueError(
+            f"unknown value type {value_type!r}; expected one of {valid}"
+        ) from None
+
+
+def value_size(value_type: str) -> int:
+    """How many bytes the guest uses for this type."""
     import struct
 
-    formats = {
-        "u8": ">B",
-        "s8": ">b",
-        "u16": ">H",
-        "s16": ">h",
-        "u32": ">I",
-        "s32": ">i",
-        "u64": ">Q",
-        "s64": ">q",
-        "f32": ">f",
-        "f64": ">d",
-    }
-    if value_type not in formats:
-        valid = ", ".join(formats)
-        raise ValueError(f"unknown value type {value_type!r}; expected one of {valid}")
+    return struct.calcsize(_format_for(value_type))
+
+
+def encode_value(value: int | float, value_type: str) -> bytes:
+    """Encode a scalar the way the guest stores it."""
+    import struct
+
+    fmt = _format_for(value_type)
     if value_type.startswith("f"):
-        return struct.pack(formats[value_type], float(value))
-    return struct.pack(formats[value_type], int(value))
+        return struct.pack(fmt, float(value))
+    return struct.pack(fmt, int(value))
+
+
+def decode_value(data: bytes, value_type: str) -> int | float:
+    """Read a scalar back out of guest bytes."""
+    import struct
+
+    fmt = _format_for(value_type)
+    expected = struct.calcsize(fmt)
+    if len(data) != expected:
+        raise ValueError(f"{value_type} needs {expected} bytes, got {len(data)}")
+    return struct.unpack(fmt, data)[0]
 
 
 def find_all(haystack: bytes, needle: bytes, base_address: int, alignment: int = 1) -> list[int]:

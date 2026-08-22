@@ -28,9 +28,11 @@ from gdb_client import (
     REGIONS,
     GdbClient,
     GdbError,
+    decode_value,
     encode_value,
     find_all,
     iter_region_chunks,
+    value_size,
 )
 
 SERVER_NAME = "dolphin"
@@ -137,17 +139,10 @@ class DolphinMcpServer:
             obj({"address": addr, "type": value_type}, ["address", "type"]),
         )
         def read_value(address: int, type: str) -> str:
-            import struct
-
-            sizes = {"u8": 1, "s8": 1, "u16": 2, "s16": 2, "u32": 4, "s32": 4,
-                     "u64": 8, "s64": 8, "f32": 4, "f64": 8}
-            fmts = {"u8": ">B", "s8": ">b", "u16": ">H", "s16": ">h", "u32": ">I",
-                    "s32": ">i", "u64": ">Q", "s64": ">q", "f32": ">f", "f64": ">d"}
-            if type not in sizes:
-                raise ToolError(f"unknown type {type!r}")
-            data = self._gdb().read_memory(address, sizes[type])
-            (value,) = struct.unpack(fmts[type], data)
-            return f"{address:#010x} {type} = {value} (raw {data.hex()})"
+            # value_size and decode_value share one table with encode_value, so
+            # a new type cannot be half-added.
+            data = self._gdb().read_memory(address, value_size(type))
+            return f"{address:#010x} {type} = {decode_value(data, type)} (raw {data.hex()})"
 
         @tool(
             "write_value",
