@@ -389,8 +389,10 @@ flat 60 that hides every difference. Run-to-run spread is about 1%, so treat any
 Interleave A and B rather than running a block of each: back-to-back blocks let thermal drift masquerade as
 a result.
 
-To build with link time optimization: `.\gradlew.bat :app:assembleRelease -PdolphinLto=true`. It changes the
-CMake configure hash, so switching it on or off forces a full native rebuild.
+Link time optimization is available with `.\gradlew.bat :app:assembleRelease -PdolphinLto=true`, and has
+been **measured: +0.24%**, inside the run-to-run spread, for about ten minutes of extra link time and 0.4MB
+of APK. It stays off. ThinLTO pays off where cross-module call overhead dominates, and this emulator's hot
+path is JIT-generated code that LTO never sees. Numbers in `docs/research/arm64-thor-optimization.md`.
 
 ## Automated Hotkey Verification
 

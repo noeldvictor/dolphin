@@ -94,13 +94,32 @@ JIT-generated code.
 Keep `RelWithDebInfo` available for crash chasing — this should be a switch, not
 a replacement. AGENTS.md already says release builds are the normal Thor path.
 
-## 3. OPEN - LTO is available and off
+## 3. MEASURED - LTO makes no difference here
 
-`CMakeLists.txt:108` — `option(ENABLE_LTO "Enables Link Time Optimization" OFF)`,
-wired to `CMAKE_INTERPROCEDURAL_OPTIMIZATION` at line 384. ThinLTO across
-`Core`/`VideoCommon`/`Common` is a plausible low-single-digit win for a large
-link-time cost. Worth one measured experiment, not a default.
+`CMakeLists.txt:108` has `option(ENABLE_LTO ... OFF)`, wired to
+`CMAKE_INTERPROCEDURAL_OPTIMIZATION`. It is now reachable from the Android build
+with `-PdolphinLto=true`, and it has been measured.
 
+| build | frames in 20s | median |
+|---|---|---:|
+| no LTO | 8300, 8382, 8397, 8433, 8445 | 8397 |
+| ThinLTO | 8374, 8417, 8443 | 8417 |
+
+**+0.24%**, with every LTO sample inside the non-LTO range. That is well under the
+~1.7% run-to-run spread, so it is not a result. The two sets were not interleaved,
+which would matter if they disagreed - they do not, so it does not.
+
+The cost side is real: `-flto=thin` adds about ten minutes to a clean link and
+0.4MB to the APK (16.70 to 17.08MB).
+
+This is not surprising once stated. ThinLTO pays off where cross-module call
+overhead dominates, and the hot path here is **JIT-generated code that LTO never
+sees**. The emulator's C++ is mostly setup, dispatch and driver interaction
+around a core that compiles itself at runtime.
+
+**Verdict: leave it off.** The option stays for anyone who wants to try it on a
+different title, but the default should not cost ten minutes of link time for
+nothing. `lz4_static` is excluded by a CMake policy quirk, which is immaterial.
 ## 4. IMPLEMENTED but unmeasured - thread affinity was compiled out on Android, and unused anyway
 
 `Source/Core/Common/Thread.cpp:122`:
@@ -300,8 +319,7 @@ disagree. See the shared-device section of `AGENTS.md`.
 
 Open, in the order worth doing them:
 
-4. LTO (section 3) - now buildable with `-PdolphinLto=true` and measurable with
-   `Tools/benchmark-android-affinity.sh`'s approach. Untested as of this writing.
+4. ~~LTO~~ - measured at +0.24%, inside the noise. Section 3 has the numbers.
 5. `js.fpr_is_store_safe` inference (section 5) - real headroom, marked by two
    upstream TODOs, but ordinary JIT work with FP-correctness risk rather than
    anything this device makes special. Belongs upstream, not in a fork that has

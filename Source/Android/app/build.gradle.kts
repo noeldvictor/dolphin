@@ -123,8 +123,13 @@ android {
                 // Opt-in link time optimization, so its cost and benefit can actually be
                 // measured rather than argued about:
                 //   .\gradlew.bat :app:assembleRelease -PdolphinLto=true
-                // It changes the CMake configure hash, so switching it on or off forces a
-                // full native rebuild. Off by default until it earns its place.
+                // It changes the CMake configure hash, so the first build of each setting is
+                // a full one - but AGP keeps both .cxx trees, so switching back afterwards is
+                // incremental and quick.
+                //
+                // Measured 2026-08-21: +0.24% throughput, inside the run to run spread, for
+                // about ten minutes of extra link time and 0.4MB of APK. Off by default. See
+                // docs/research/arm64-thor-optimization.md.
                 if (project.findProperty("dolphinLto") == "true") {
                     arguments("-DENABLE_LTO=ON")
                 }
