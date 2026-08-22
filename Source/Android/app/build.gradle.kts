@@ -120,6 +120,15 @@ android {
                 // CMAKE_BUILD_TYPE is set per build type below: Release (-O3) for the
                 // Thor release path, RelWithDebInfo (-O2 -g) for crash chasing.
 
+                // Opt-in link time optimization, so its cost and benefit can actually be
+                // measured rather than argued about:
+                //   .\gradlew.bat :app:assembleRelease -PdolphinLto=true
+                // It changes the CMake configure hash, so switching it on or off forces a
+                // full native rebuild. Off by default until it earns its place.
+                if (project.findProperty("dolphinLto") == "true") {
+                    arguments("-DENABLE_LTO=ON")
+                }
+
                 // The Thor is arm64. Building x86_64 as well roughly doubles a clean
                 // native build for an ABI this fork never installs - add it back when
                 // you need the Android emulator.

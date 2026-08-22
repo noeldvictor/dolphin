@@ -151,13 +151,35 @@ and three places take the slower branch:
 - `Source/Core/Common/ArmFPURoundMode.cpp:54` — this is the device that shows the
   non-IEEE-mode warning.
 
-There is no software fix; FEAT_AFP is hardware. The useful consequence is that
-**`js.fpr_is_store_safe` inference is load-bearing on the Thor** in a way it is
-not on an AFP-capable phone. Any improvement to that analysis is worth more here
-than the same work upstream would be worth on newer silicon. That is a real
-optimization target, and it is a JIT-correctness-sensitive one — the Arm ARM in
-`docs/reference/arm/` is the manual that settles it.
+There is no software fix; FEAT_AFP is hardware.
 
+**Correction, 2026-08-21.** An earlier version of this section claimed the
+`js.fpr_is_store_safe` analysis is "load-bearing on the Thor in a way it is not
+on an AFP-capable phone", and that improving it is worth more here than upstream.
+Reading what `bAFP` actually gates does not support that.
+
+`cpu_info.bAFP` appears in exactly three places, and only one is a code path:
+`JitArm64_FloatingPoint.cpp:500` sets `input_ftz_workaround`, which forces the
+**`fcmp` family alone** onto a double-precision comparison when an operand is not
+store-safe. `JitAsm.cpp:576` picks the FPCR setup, and `ArmFPURoundMode.cpp:54`
+shows a warning. So the AFP penalty is one instruction family, not a pervasive
+tax, and `FCMP D` versus `FCMP S` is not a dramatic difference on these cores.
+
+`js.fpr_is_store_safe` is used far more widely than that - the single-precision
+path at `:457`, and the store paths at `:740`, `:760`, `:786`, `:848` and `:921`.
+Every one of those is independent of AFP and applies on any ARM64 host. So
+improving the inference is worth roughly the **same** here as anywhere, and the
+argument for doing it on Thor specifically was wrong.
+
+The real headroom is still there, and upstream marks it. `PPCAnalyst.cpp` resets
+`fprIsStoreSafe` to zero at the start of every block and carries two TODOs about
+it: going straight from a load to a store without converting, and using the fast
+single-to-double conversion after a load whose value is not used elsewhere. A
+value loaded by `lfs` is not currently treated as store-safe at all.
+
+That is genuine JIT work with real FP-correctness risk, in code upstream is
+actively changing. For a fork that just paid for a 390-commit merge, it belongs
+upstream rather than here.
 ## 6. OPEN, low priority - the emitter has no LSE or FRINTTS encodings
 
 `Source/Core/Common/Arm64Emitter.h` exposes `LDAXR`/`STLXR` and no `CAS*`,
@@ -278,10 +300,17 @@ disagree. See the shared-device section of `AGENTS.md`.
 
 Open, in the order worth doing them:
 
-4. **Measure.** Nothing here has been timed against a running game - there were no game
-   images on the device. This is the blocking item for everything below.
-5. Thread affinity (section 4) is now implemented and off by default. Turning it on is a
-   one-tap A/B once a game is available; it stays off until it earns its place.
-6. LTO (section 3) - one measured experiment.
-7. `js.fpr_is_store_safe` inference (section 5) - worth more on this device than upstream,
-   and the only item here that touches JIT correctness.
+4. LTO (section 3) - now buildable with `-PdolphinLto=true` and measurable with
+   `Tools/benchmark-android-affinity.sh`'s approach. Untested as of this writing.
+5. `js.fpr_is_store_safe` inference (section 5) - real headroom, marked by two
+   upstream TODOs, but ordinary JIT work with FP-correctness risk rather than
+   anything this device makes special. Belongs upstream, not in a fork that has
+   to re-merge it forever.
+
+Settled since this document was written:
+
+- The ARMv8.4 build change is applied and verified in the generated code, but
+  **not shown to be faster**. See the timing sections above.
+- Thread affinity is implemented, measured at **0% difference**, and stays off.
+- The device is shared with other emulator sessions, which invalidated three
+  measurement attempts before the tooling learned to detect it.
