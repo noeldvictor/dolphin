@@ -33,6 +33,8 @@ FILES="/storage/emulated/0/Android/data/$PKG/files"
 CFG="$FILES/Config"
 BACKUP=/storage/emulated/0/dolphin_bench_backup
 MEASURE_SECONDS=20
+# Below this, the run did not boot a game rather than running one slowly.
+MIN_VALID_FRAMES=200
 
 RIVALS='armsx2|eden_emulator|rpcsx|rpcs3|vita3k|azahar|citra|yuzu|cemu|xenia|pcsx|ppsspp|melon|duckstation|retroarch'
 
@@ -103,6 +105,23 @@ for i in $(seq 1 "$ITERATIONS"); do
             say "         Discarding the whole benchmark rather than reporting noise."
             exit 2
         fi
+
+        # A run with (almost) no frames did not measure a slow emulator, it
+        # failed to boot one. Folding that into the median would invent an
+        # enormous difference out of nothing, so retry instead of recording it.
+        attempt=1
+        while [ "${frames:-0}" -lt "$MIN_VALID_FRAMES" ] && [ "$attempt" -lt 3 ]; do
+            say "run $i, affinity=$affinity: only ${frames:-0} frames - the game did not boot, retrying"
+            attempt=$((attempt + 1))
+            $ADB logcat -c >/dev/null 2>&1
+            frames=$(run_once "$affinity")
+        done
+        if [ "${frames:-0}" -lt "$MIN_VALID_FRAMES" ]; then
+            say "FAILED: could not get a valid run for affinity=$affinity after $attempt attempts."
+            say "        Reporting nothing rather than half a comparison."
+            exit 2
+        fi
+
         say "run $i, affinity=$affinity: $frames frames in ${MEASURE_SECONDS}s"
         if [ "$affinity" = "False" ]; then
             OFF_RESULTS="$OFF_RESULTS $frames"
