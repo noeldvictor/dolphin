@@ -233,6 +233,15 @@ the thing that was changed.
 So the ARMv8.4 build is justified by what it demonstrably does to the generated code, and by
 nothing more than that so far. A real title is still the only way to know whether it matters.
 
+### The device is shared, which makes on-device timing hard
+
+A first attempt at timing the affinity setting against a real game was thrown away: identical
+90-second runs produced 5347, 1517, 324 and 5408 emulated frames, and two of those ran the same
+configuration as each other. Other Claude sessions share this Thor, so a run can be competing
+with another emulator for the same cores. Any future measurement here needs repeated runs of
+each configuration, interleaved, with the result discarded when repeats of one configuration
+disagree. See the shared-device section of `AGENTS.md`.
+
 Open, in the order worth doing them:
 
 4. **Measure.** Nothing here has been timed against a running game - there were no game

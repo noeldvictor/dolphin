@@ -232,6 +232,30 @@ $env:Path = "$env:JAVA_HOME\bin;$env:ANDROID_HOME\platform-tools;$env:Path"
 
 Do not commit generated build outputs from `Source/Android/app/build`.
 
+## The AYN Thor Is A Shared Device
+
+Several Claude sessions work on emulator forks on this machine at the same time, and they all reach the same
+AYN Thor over the same `adb` connection. Treat the device as a contended resource.
+
+- **Never stall waiting for the device.** If the Thor is busy, keep doing code work - reading, editing,
+  building, reviewing, writing docs. Blocking on hardware while there is source work left is always wrong.
+- **Timings taken while another session is using the device are worthless.** This is not theoretical: an A/B
+  of the performance-core affinity setting on 2026-08-21 produced 5347, 1517, 324 and 5408 emulated frames
+  over identical 90-second runs, and the last two used the *same* configuration as each other. A 16x spread
+  between two identical runs is the other sessions, not the setting. Before trusting any measurement, run the
+  same configuration at least twice and throw the whole result away if the repeats disagree.
+- **Leave the device as you found it.** `adb shell am force-stop org.dolphinemu.dolphinemu` when finished,
+  restore any config you edited (back it up first - `Config/Dolphin.ini` and `Config/GFX.ini` carry the user's
+  GPU driver choice and game paths), and delete anything you pushed to `/sdcard` or `/data/local/tmp`.
+- Installing the APK is fine and does not disturb another session; running a game does.
+
+Game images live on the SD card at `/storage/2664-21DE/Roms/gc` and `/Roms/wii`, already registered in
+Dolphin's library as SAF content URIs. They are **not** under `/storage/emulated/0/Emulation/ROMs`, which is
+empty - search the SD card before concluding there is nothing to boot.
+
+`EmulationActivity` is `exported="false"`, so a game cannot be booted with `am start` from adb. Launch
+`MainActivity` and drive the grid with `input tap` instead.
+
 ## Running The C++ Unit Tests On The Thor
 
 The Android build already produces an aarch64 gtest binary, so the native suite can be run on the real
