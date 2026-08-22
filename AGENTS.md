@@ -247,13 +247,155 @@ not read it: enabling `GDBPort` makes a boot **block until a client attaches**, 
 **paused** until `resume`, and the stub is disabled under RetroAchievements hardcore mode.
 
 The server also exposes the device itself over adb - `screenshot`, `press_buttons`, `hotkey`,
-`list_savestates`, `device_status`. Those need no stub, so they work during ordinary play and are the
-practical way to drive verification: a screenshot the model can see, and hotkey chords injected into the
-gamepad's event node.
+`list_savestates`, `device_status`. Those need no stub, so they work during ordinary play and are the practical
+way to drive verification: a screenshot the model can see, and hotkey chords injected into the gamepad's event
+node. Input goes through `sendevent` rather than `input keyevent`, because `input keyevent` sends a down and an
+up together and so cannot hold Select while pressing R1.
 
-After touching it run all three suites, none of which needs a device: `test_dolphin_mcp.py` (31, the
-server), `test_stub_contract.py` (12, which parse `GDBStub.cpp` and fail if an upstream merge changes what
-the client hardcodes) and `test_device.py` (16, the adb and input layer).
+After touching it run all three suites, none of which needs a device: `python Tools/mcp/test_dolphin_mcp.py`
+(31 tests, the server), `python Tools/mcp/test_stub_contract.py` (12 tests, which parse `GDBStub.cpp` and fail
+if an upstream merge changes the assumptions the client hardcodes) and `python Tools/mcp/test_device.py`
+(16 tests, the adb and input layer).
+
+## Verified Input Axes On The Thor
+
+The Thor's built-in gamepad enumerates as **`Odin Controller`** (`adb shell dumpsys input`). Its Android
+motion ranges are exactly:
+
+| Android axis | id | raw evdev | role |
+|---|---:|---|---|
+| `AXIS_X` / `AXIS_Y` | 0 / 1 | `ABS_X` / `ABS_Y` | left stick |
+| `AXIS_Z` / `AXIS_RZ` | 11 / 14 | `ABS_Z` / `ABS_RZ` | right stick |
+| `AXIS_HAT_X` / `AXIS_HAT_Y` | 15 / 16 | `ABS_HAT0X` / `ABS_HAT0Y` | d-pad |
+| `AXIS_GAS` / `AXIS_BRAKE` | 22 / 23 | `ABS_GAS` / `ABS_BRAKE` | analog triggers |
+
+**There is no `AXIS_LTRIGGER` (17) or `AXIS_RTRIGGER` (18) on this device.** Dolphin names Android axes as
+`Axis <Android constant><sign>` (`ConstructAxisName`, `Source/Core/InputCommon/ControllerInterface/Android/`
+`Android.cpp`), so a profile binding `Axis 17+`/`Axis 18+` here binds to nothing at all. Both bundled AYN
+profiles did exactly that until 2026-08-21, which left the GameCube analog triggers dead - only the digital
+`Button L2`/`Button R2` fallbacks worked. They now use `Axis 23+` for L and `Axis 22+` for R.
+
+Left/right on the trigger pair is corroborated, not guessed. SDL's Android mapping documents it directly -
+`RangeComparator` in
+`Externals/SDL/SDL/android-project/app/src/main/java/org/libsdl/app/SDLControllerManager.java` says
+*"return AXIS_GAS (22) for right trigger and AXIS_BRAKE (23) for left trigger"*, citing the kernel gamepad
+spec, and SDL supports thousands of pads. That matches what the bundled profiles now use.
+
+It has still never been confirmed by physically pressing the triggers, and no amount of event injection can
+substitute for that - injecting an event says nothing about which button produces it. If L and R ever come out
+swapped in game, swap 22 and 23 in `Data/Sys/Profiles/GCPad/AYN Odin Android GameCube.ini` and the Classic
+Controller profile.
+
+Every other control name in the bundled AYN profiles was audited against this pad's real capabilities on
+2026-08-21 (`getevent -pl` for buttons, `dumpsys input` for axes) and all of them resolve. The trigger axes
+were the only dead bindings. The gyro profile's 13 sensor bindings were likewise checked against the names
+`DolphinSensorEventListener` actually registers, and all match.
+
+The Android hotkey layer does not use these bindings - it reads `MotionEvent` axes directly.
+`AndroidHotkeyManager.rightStickY` takes whichever of `AXIS_RZ`/`AXIS_RY` has the larger magnitude, and since
+this pad has no `AXIS_RY` that resolves to `AXIS_RZ`, which is the correct right-stick vertical here.
+
+Rumble: the Thor reports a single vibrator with `mId=0` on SDK 33, so it takes the
+`DolphinVibratorManagerPassthrough` path and `Motor 0` is the right binding. It advertises
+`AMPLITUDE_CONTROL`, so the fork's strength-scaled rumble is genuinely active rather than falling back to
+`DEFAULT_AMPLITUDE`.
+
+## The AYN Thor Is A Shared Device
+
+Several Claude sessions work on emulator forks on this machine at the same time, and they all reach the same
+AYN Thor over the same `adb` connection. Treat the device as a contended resource.
+
+- **Never stall waiting for the device.** If the Thor is busy, keep doing code work - reading, editing,
+  building, reviewing, writing docs. Blocking on hardware while there is source work left is always wrong.
+- **Timings taken while another session is using the device are worthless.** This is not theoretical: an A/B
+  of the performance-core affinity setting on 2026-08-21 produced 5347, 1517, 324 and 5408 emulated frames
+  over identical 90-second runs, and the last two used the *same* configuration as each other. A 16x spread
+  between two identical runs is the other sessions, not the setting. Before trusting any measurement, run the
+  same configuration at least twice and throw the whole result away if the repeats disagree.
+- **Leave the device as you found it.** `adb shell am force-stop org.dolphinemu.dolphinemu` when finished,
+  restore any config you edited (back it up first - `Config/Dolphin.ini` and `Config/GFX.ini` carry the user's
+  GPU driver choice and game paths), and delete anything you pushed to `/sdcard` or `/data/local/tmp`.
+- Installing the APK is fine and does not disturb another session; running a game does.
+
+**Check for contention properly before any on-device run.** Looking for a foreground activity is not enough -
+a competing emulator can be mid-run while its process looks ordinary. The sibling projects on this machine
+install as `com.armsx2`, `dev.eden.eden_emulator.nightly`, `net.rpcsx.easy`, `org.vita3k.emulator.debug` and
+friends. Check for all of them, and check `logcat` for their output:
+
+```powershell
+adb -s <serial> shell "ps -A -o NAME | grep -iE 'armsx2|eden|rpcs|vita3k|azahar|citra|yuzu|cemu|xenia|pcsx|ppsspp|retroarch'"
+```
+
+**Another session can force-stop your app mid-run.** On 2026-08-21 a Dolphin run went 60fps for eight
+seconds, collapsed to 6fps as `com.armsx2` loaded a PS2 title, and was then killed outright -
+`ActivityManager: Force stopping org.dolphinemu.dolphinemu ... from pid 2601`. So a run that ends with the
+process gone is **not** evidence of a crash in our build. Always check `logcat` for `forceStopPackage`
+before investigating a supposed crash, and re-run when the device is quiet.
+
+Game images live on the SD card at `/storage/2664-21DE/Roms/gc` and `/Roms/wii`, already registered in
+Dolphin's library as SAF content URIs. They are **not** under `/storage/emulated/0/Emulation/ROMs`, which is
+empty - search the SD card before concluding there is nothing to boot.
+
+`EmulationActivity` is `exported="false"`, so a game cannot be booted with `am start` from adb. Launch
+`MainActivity` and drive the grid with `input tap` instead.
+
+## Running The C++ Unit Tests On The Thor
+
+The Android build already produces an aarch64 gtest binary, so the native suite can be run on the real
+device - useful whenever build flags or the JIT change, and the only real check available when no game
+images are on the device.
+
+**Push the `Sys` directory too.** The binary resolves the Sys path relative to its working directory, and
+several tests (`PatchAllowlist.VerifyHashes` in particular) silently compute the wrong answer and fail if it
+is missing. A run without `Sys` is not a valid run.
+
+```powershell
+$build = Resolve-Path Source/Android/app/.cxx/Release/*/arm64-v8a/Binaries/Tests
+llvm-strip -o $env:TEMP/dolphin_tests_arm64 "$build/tests"   # 248MB -> 10MB
+adb -s <serial> push $env:TEMP/dolphin_tests_arm64 /data/local/tmp/
+adb -s <serial> push "$build/Sys" /data/local/tmp/
+adb -s <serial> shell 'chmod 755 /data/local/tmp/dolphin_tests_arm64 && cd /data/local/tmp && ./dolphin_tests_arm64'
+adb -s <serial> shell 'rm -rf /data/local/tmp/dolphin_tests_arm64 /data/local/tmp/Sys'
+```
+
+Expected on 2026-08-21, on the Thor, with the ARMv8.4 build: **1031 of 1031 pass** in about 8 seconds.
+
+That total includes the five `JitArm64` emitter tests, which assemble and execute JIT output, so a green run
+does prove the emitter works on the device. It does **not** prove anything about emulation speed - see the
+timing section of `docs/research/arm64-thor-optimization.md`, where this suite failed to detect the ARMv8.4
+build change at all because it is the wrong workload for it.
+
+## Automated Hotkey Verification
+
+`Tools/verify-android-hotkeys.sh [serial]` checks the fork's hotkeys on a device without anyone holding
+buttons. It synthesizes controller input with `sendevent` on the gamepad's own event node, so Dolphin sees
+ordinary hardware input - shell is in the `input` group, and the node is mode 660 `root:input`.
+
+It is built around the two things this device teaches you the hard way:
+
+- It **refuses to run** (exit 2) while another emulator is burning CPU, because a run taken then is worthless
+  and will probably be force-stopped part way through.
+- It prefers **evidence that survives being killed**. A quick save writes a file to `StateSaves`, so it still
+  proves the hotkey fired even if the app is gone by the time we look. The speed toggle calls
+  `NativeLibrary.SetEmulationSpeedLimit` and persists nothing, so it can only be confirmed live - the script
+  says so rather than pretending otherwise.
+
+It distinguishes its own startup `force-stop` from someone else's and reports INCONCLUSIVE rather than FAIL
+when another session interfered.
+
+## Verification Checklist
+
+- Run Kotlin/Android formatting for edited Java/Kotlin files using the Dolphin code style from `Source/Android/code-style-java.xml`.
+- Build at least `:app:assembleRelease` before claiming the APK is ready for daily Thor testing.
+- Install the release package to the AYN Thor with `adb install -r app\build\outputs\apk\release\app-release.apk` or `:app:installRelease`.
+- On device, verify mobile grid cover badges, TV/Leanback cards if relevant, and games with no cheats.
+- In game, verify save/load hotkeys do not fire repeatedly while held.
+- Verify the Select button still works normally when no hotkey combo is completed.
+- Verify the right stick still reaches the emulated controller outside the hotkey combo.
+- Verify speed toggle switches both ways and does not leave config in an unexpected state.
+- Verify rumble with Android system vibration enabled on the Thor; `adb shell settings get system vibrate_on`, `adb shell settings get system haptic_feedback_enabled`, and `adb shell settings get system keyboard_vibration_enabled` should all return `1`.
+
+## Remaining Questions Before Implementation
 
 - ~~If AYN Thor/Odin axis names differ from generic Android `Axis 0/1/11/14/17/18`, confirm with the input
   mapper and update the bundled profiles.~~ **Answered 2026-08-21.** See the input axis section below.
