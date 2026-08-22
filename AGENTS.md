@@ -351,6 +351,24 @@ does prove the emitter works on the device. It does **not** prove anything about
 timing section of `docs/research/arm64-thor-optimization.md`, where this suite failed to detect the ARMv8.4
 build change at all because it is the wrong workload for it.
 
+## Automated Hotkey Verification
+
+`Tools/verify-android-hotkeys.sh [serial]` checks the fork's hotkeys on a device without anyone holding
+buttons. It synthesizes controller input with `sendevent` on the gamepad's own event node, so Dolphin sees
+ordinary hardware input - shell is in the `input` group, and the node is mode 660 `root:input`.
+
+It is built around the two things this device teaches you the hard way:
+
+- It **refuses to run** (exit 2) while another emulator is burning CPU, because a run taken then is worthless
+  and will probably be force-stopped part way through.
+- It prefers **evidence that survives being killed**. A quick save writes a file to `StateSaves`, so it still
+  proves the hotkey fired even if the app is gone by the time we look. The speed toggle calls
+  `NativeLibrary.SetEmulationSpeedLimit` and persists nothing, so it can only be confirmed live - the script
+  says so rather than pretending otherwise.
+
+It distinguishes its own startup `force-stop` from someone else's and reports INCONCLUSIVE rather than FAIL
+when another session interfered.
+
 ## Verification Checklist
 
 - Run Kotlin/Android formatting for edited Java/Kotlin files using the Dolphin code style from `Source/Android/code-style-java.xml`.
