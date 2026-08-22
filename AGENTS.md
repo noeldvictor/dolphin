@@ -285,6 +285,21 @@ AYN Thor over the same `adb` connection. Treat the device as a contended resourc
   GPU driver choice and game paths), and delete anything you pushed to `/sdcard` or `/data/local/tmp`.
 - Installing the APK is fine and does not disturb another session; running a game does.
 
+**Check for contention properly before any on-device run.** Looking for a foreground activity is not enough -
+a competing emulator can be mid-run while its process looks ordinary. The sibling projects on this machine
+install as `com.armsx2`, `dev.eden.eden_emulator.nightly`, `net.rpcsx.easy`, `org.vita3k.emulator.debug` and
+friends. Check for all of them, and check `logcat` for their output:
+
+```powershell
+adb -s <serial> shell "ps -A -o NAME | grep -iE 'armsx2|eden|rpcs|vita3k|azahar|citra|yuzu|cemu|xenia|pcsx|ppsspp|retroarch'"
+```
+
+**Another session can force-stop your app mid-run.** On 2026-08-21 a Dolphin run went 60fps for eight
+seconds, collapsed to 6fps as `com.armsx2` loaded a PS2 title, and was then killed outright -
+`ActivityManager: Force stopping org.dolphinemu.dolphinemu ... from pid 2601`. So a run that ends with the
+process gone is **not** evidence of a crash in our build. Always check `logcat` for `forceStopPackage`
+before investigating a supposed crash, and re-run when the device is quiet.
+
 Game images live on the SD card at `/storage/2664-21DE/Roms/gc` and `/Roms/wii`, already registered in
 Dolphin's library as SAF content URIs. They are **not** under `/storage/emulated/0/Emulation/ROMs`, which is
 empty - search the SD card before concluding there is nothing to boot.
