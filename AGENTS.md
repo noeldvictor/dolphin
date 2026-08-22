@@ -254,6 +254,11 @@ Left/right on the trigger pair follows the usual Android convention (brake = lef
 been confirmed by physically pressing them. If L and R come out swapped in game, swap 22 and 23 in
 `Data/Sys/Profiles/GCPad/AYN Odin Android GameCube.ini` and the Classic Controller profile.
 
+Every other control name in the bundled AYN profiles was audited against this pad's real capabilities on
+2026-08-21 (`getevent -pl` for buttons, `dumpsys input` for axes) and all of them resolve. The trigger axes
+were the only dead bindings. The gyro profile's 13 sensor bindings were likewise checked against the names
+`DolphinSensorEventListener` actually registers, and all match.
+
 The Android hotkey layer does not use these bindings - it reads `MotionEvent` axes directly.
 `AndroidHotkeyManager.rightStickY` takes whichever of `AXIS_RZ`/`AXIS_RY` has the larger magnitude, and since
 this pad has no `AXIS_RY` that resolves to `AXIS_RZ`, which is the correct right-stick vertical here.
