@@ -371,6 +371,27 @@ does prove the emitter works on the device. It does **not** prove anything about
 timing section of `docs/research/arm64-thor-optimization.md`, where this suite failed to detect the ARMv8.4
 build change at all because it is the wrong workload for it.
 
+## Benchmarking On The Thor
+
+Two harnesses, both of which refuse to run while another emulator is using the device, retry a run that
+failed to boot instead of recording a zero, discard a run another session force-stopped, and restore the
+config afterwards:
+
+- `Tools/benchmark-android-throughput.sh [serial] [runs] [label]` measures whatever build is **installed**.
+  Use it to compare two APKs - LTO against no LTO, one Turnip driver against another, a JIT change against
+  its parent.
+- `Tools/benchmark-android-affinity.sh [serial] [iterations]` compares the performance-core pinning setting
+  within one build, interleaved.
+
+Both run emulation **uncapped** (`EmulationSpeed = 0`) so the frame count is raw throughput rather than a
+flat 60 that hides every difference. Run-to-run spread is about 1%, so treat anything smaller as noise.
+
+Interleave A and B rather than running a block of each: back-to-back blocks let thermal drift masquerade as
+a result.
+
+To build with link time optimization: `.\gradlew.bat :app:assembleRelease -PdolphinLto=true`. It changes the
+CMake configure hash, so switching it on or off forces a full native rebuild.
+
 ## Automated Hotkey Verification
 
 `Tools/verify-android-hotkeys.sh [serial]` checks the fork's hotkeys on a device without anyone holding
