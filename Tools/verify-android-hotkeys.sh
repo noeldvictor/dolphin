@@ -75,7 +75,18 @@ trap '$ADB shell "am force-stop $PKG; cp $BACKUP/Dolphin.ini $CFG/Dolphin.ini 2>
 
 STATES_BEFORE=$($ADB shell "ls -1 $STATES 2>/dev/null | wc -l" | tr -d '\r')
 
+# Boot at half speed on purpose. toggleSpeed() flips to 1.0 whenever the current
+# speed is not already ~1.0, so the toggle must double the frame rate - a signal
+# that does not depend on the device having spare GPU headroom, which a plain
+# "did it get faster than 60fps" test would.
 $ADB shell "
+  sed -i '/^EmulationSpeed *=/d' $CFG/Dolphin.ini
+  sed -i '/^\[Core\]/a EmulationSpeed = 0.5' $CFG/Dolphin.ini
+  grep -q '^LogRenderTimeToFile' $CFG/GFX.ini || sed -i '/^\[Settings\]/a LogRenderTimeToFile = True' $CFG/GFX.ini
+  rm -f $FILES/Logs/vblank_times.txt
+"
+
+DEVICE_OUT=$($ADB shell "
 set -u
 DEV=$EVENT_NODE
 syn()  { sendevent \$DEV 0 0 0; }
@@ -94,28 +105,41 @@ sleep 40
 input tap 200 540
 sleep 4
 
+frames() { wc -l < $FILES/Logs/vblank_times.txt 2>/dev/null || echo 0; }
+
+echo '-- speed toggle: measuring against the 50% baseline --'
+a=\$(frames); sleep 12; b=\$(frames); base=\$((b-a))
+echo \"baseline frames in 12s: \$base\"
+key $BTN_SELECT 1; sleep 0.3; key $BTN_TR 1; sleep 0.2; key $BTN_TR 0; sleep 0.3; key $BTN_SELECT 0
+sleep 2
+a=\$(frames); sleep 12; b=\$(frames); fast=\$((b-a))
+echo \"SPEEDRESULT \$base \$fast\"
+# Toggle back so the quick save below happens at normal speed.
+key $BTN_SELECT 1; sleep 0.3; key $BTN_TR 1; sleep 0.2; key $BTN_TR 0; sleep 0.3; key $BTN_SELECT 0
+sleep 2
+
 echo '-- quick save: Select + right stick down --'
 key $BTN_SELECT 1; sleep 0.4; axis 32767; sleep 0.6; axis 0; sleep 0.3; key $BTN_SELECT 0
 sleep 6
 
-echo '-- speed toggle: Select + R1, twice --'
-key $BTN_SELECT 1; sleep 0.3; key $BTN_TR 1; sleep 0.2; key $BTN_TR 0; sleep 0.3; key $BTN_SELECT 0
-sleep 3
-key $BTN_SELECT 1; sleep 0.3; key $BTN_TR 1; sleep 0.2; key $BTN_TR 0; sleep 0.3; key $BTN_SELECT 0
-sleep 2
-
 echo '-- quick load: Select + right stick up --'
 key $BTN_SELECT 1; sleep 0.4; axis -32767; sleep 0.6; axis 0; sleep 0.3; key $BTN_SELECT 0
 sleep 6
-"
+")
+printf '%s\n' "$DEVICE_OUT"
 
 STATES_AFTER=$($ADB shell "ls -1 $STATES 2>/dev/null | wc -l" | tr -d '\r')
 STILL_UP=$($ADB shell "ps -A -o NAME | grep -cx $PKG" | tr -d '\r')
 KILLED=$($ADB shell "logcat -d -t 400 | grep -c 'forceStopPackage: $PKG'" | tr -d '\r')
 
+SPEED_LINE=$(printf '%s\n' "$DEVICE_OUT" | grep SPEEDRESULT | tail -1)
+BASE_FRAMES=$(echo "$SPEED_LINE" | awk '{print $2}')
+FAST_FRAMES=$(echo "$SPEED_LINE" | awk '{print $3}')
+
 say ""
 say "savestates before: ${STATES_BEFORE:-0}   after: ${STATES_AFTER:-0}"
 say "app still running: $STILL_UP"
+say "speed toggle: ${BASE_FRAMES:-?} frames at 50%, ${FAST_FRAMES:-?} after toggling"
 
 # One forceStop is our own at the start of the run; more than that came from
 # somewhere else.
@@ -126,12 +150,26 @@ if [ "${KILLED:-0}" -gt 1 ]; then
     exit 2
 fi
 
+RESULT=0
+
+say ""
+if [ -n "${BASE_FRAMES:-}" ] && [ "${BASE_FRAMES:-0}" -gt 50 ] 2>/dev/null; then
+    if [ "$((FAST_FRAMES * 100 / BASE_FRAMES))" -ge 150 ]; then
+        say "PASS: the speed toggle took the game from 50% to full speed."
+    else
+        say "FAIL: the speed toggle did not change the frame rate."
+        RESULT=1
+    fi
+else
+    say "INCONCLUSIVE: too few baseline frames to judge the speed toggle."
+    say "              Did a game actually boot, and was the menu dismissed?"
+fi
+
 if [ "${STATES_AFTER:-0}" -gt "${STATES_BEFORE:-0}" ]; then
-    say ""
     say "PASS: the quick-save hotkey produced a savestate."
-    say "      Quick load and the speed toggle leave no durable trace, so check"
-    say "      the on-screen FPS by hand if you need those confirmed."
-    exit 0
+    say "      Quick load leaves no durable trace; that it did not crash the app"
+    say "      is the only automatic signal for it."
+    exit $RESULT
 fi
 
 say ""
