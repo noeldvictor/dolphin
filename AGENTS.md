@@ -232,6 +232,22 @@ $env:Path = "$env:JAVA_HOME\bin;$env:ANDROID_HOME\platform-tools;$env:Path"
 
 Do not commit generated build outputs from `Source/Android/app/build`.
 
+## MCP Server For Memory Access
+
+`Tools/mcp/` is an MCP server that gives an AI client the running game's memory and CPU state - read and
+write values, scan RAM and narrow candidates down, set watchpoints, step. It is the practical way to find
+cheats for this fork instead of hand-scraping mirrors.
+
+It drives Dolphin's **existing** GDB stub (`Source/Core/Core/PowerPC/GDBStub.cpp`, off by default via
+`GDBPort`) over TCP, so the emulator is unmodified. Keep it that way: a control surface added under
+`Source/` would be re-merged against upstream forever, and this fork already pays that cost.
+
+Setup, the tool list and the cheat-finding loop are in `Tools/mcp/README.md`. Three things bite if you have
+not read it: enabling `GDBPort` makes a boot **block until a client attaches**, the game then starts
+**paused** until `resume`, and the stub is disabled under RetroAchievements hardcore mode.
+
+Run `python Tools/mcp/test_dolphin_mcp.py` after touching it - 28 tests, no device needed.
+
 ## Verified Input Axes On The Thor
 
 The Thor's built-in gamepad enumerates as **`Odin Controller`** (`adb shell dumpsys input`). Its Android

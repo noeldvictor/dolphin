@@ -52,3 +52,7 @@ CMakeUserPresets.json
 # Vendor reference manuals (~95MB of PDFs) are kept locally, not committed.
 # See docs/reference/*/README.md for what they are and how to re-fetch them.
 docs/reference/**/*.pdf
+
+# Python bytecode caches
+__pycache__/
+*.pyc
