@@ -233,6 +233,37 @@ the thing that was changed.
 So the ARMv8.4 build is justified by what it demonstrably does to the generated code, and by
 nothing more than that so far. A real title is still the only way to know whether it matters.
 
+### First affinity numbers: pinning looks slightly harmful
+
+`Tools/benchmark-android-affinity.sh` boots the same title with the setting off
+and on, interleaved, with emulation uncapped (`EmulationSpeed = 0`) so the frame
+rate is raw throughput rather than a flat 60 that would hide any difference.
+
+| affinity | frames in 20s |
+|---|---|
+| off | 8453, 8365 |
+| on | 7766 |
+
+That is roughly **8% slower with pinning** - about 420 versus 388 emulated frames
+per second. One clean pair is a signal, not a conclusion, and a fourth run failed
+to boot and was discarded rather than counted (see below).
+
+The direction is not surprising on reflection. Section 4 argued that the scheduler
+parking the CPU thread on an A510 costs more than anything software can win back,
+and that is still true - but pinning to the performance cluster also stops the
+scheduler from spreading Dolphin's *other* threads (audio, IO, JIT compilation,
+the Vulkan driver's own workers) across the little cores. On this title the second
+effect appears to dominate.
+
+**This is why the setting ships off.** It was never enabled by default, so nothing
+depends on the guess that turned out to point the wrong way.
+
+A caution about the harness rather than the hardware: the first run of this
+benchmark reported a confident "53% slower with pinning" because one of its four
+runs never booted a game, and a zero-frame result was folded into the median as
+though it were a slow one. A failed run is not data. The script now retries below
+a validity floor and refuses to publish half a comparison.
+
 ### The device is shared, which makes on-device timing hard
 
 A first attempt at timing the affinity setting against a real game was thrown away: identical
