@@ -232,6 +232,37 @@ $env:Path = "$env:JAVA_HOME\bin;$env:ANDROID_HOME\platform-tools;$env:Path"
 
 Do not commit generated build outputs from `Source/Android/app/build`.
 
+## Verified Input Axes On The Thor
+
+The Thor's built-in gamepad enumerates as **`Odin Controller`** (`adb shell dumpsys input`). Its Android
+motion ranges are exactly:
+
+| Android axis | id | raw evdev | role |
+|---|---:|---|---|
+| `AXIS_X` / `AXIS_Y` | 0 / 1 | `ABS_X` / `ABS_Y` | left stick |
+| `AXIS_Z` / `AXIS_RZ` | 11 / 14 | `ABS_Z` / `ABS_RZ` | right stick |
+| `AXIS_HAT_X` / `AXIS_HAT_Y` | 15 / 16 | `ABS_HAT0X` / `ABS_HAT0Y` | d-pad |
+| `AXIS_GAS` / `AXIS_BRAKE` | 22 / 23 | `ABS_GAS` / `ABS_BRAKE` | analog triggers |
+
+**There is no `AXIS_LTRIGGER` (17) or `AXIS_RTRIGGER` (18) on this device.** Dolphin names Android axes as
+`Axis <Android constant><sign>` (`ConstructAxisName`, `Source/Core/InputCommon/ControllerInterface/Android/`
+`Android.cpp`), so a profile binding `Axis 17+`/`Axis 18+` here binds to nothing at all. Both bundled AYN
+profiles did exactly that until 2026-08-21, which left the GameCube analog triggers dead - only the digital
+`Button L2`/`Button R2` fallbacks worked. They now use `Axis 23+` for L and `Axis 22+` for R.
+
+Left/right on the trigger pair follows the usual Android convention (brake = left, gas = right) and has not
+been confirmed by physically pressing them. If L and R come out swapped in game, swap 22 and 23 in
+`Data/Sys/Profiles/GCPad/AYN Odin Android GameCube.ini` and the Classic Controller profile.
+
+The Android hotkey layer does not use these bindings - it reads `MotionEvent` axes directly.
+`AndroidHotkeyManager.rightStickY` takes whichever of `AXIS_RZ`/`AXIS_RY` has the larger magnitude, and since
+this pad has no `AXIS_RY` that resolves to `AXIS_RZ`, which is the correct right-stick vertical here.
+
+Rumble: the Thor reports a single vibrator with `mId=0` on SDK 33, so it takes the
+`DolphinVibratorManagerPassthrough` path and `Motor 0` is the right binding. It advertises
+`AMPLITUDE_CONTROL`, so the fork's strength-scaled rumble is genuinely active rather than falling back to
+`DEFAULT_AMPLITUDE`.
+
 ## The AYN Thor Is A Shared Device
 
 Several Claude sessions work on emulator forks on this machine at the same time, and they all reach the same
@@ -296,5 +327,6 @@ build change at all because it is the wrong workload for it.
 
 ## Remaining Questions Before Implementation
 
-- If AYN Thor/Odin axis names differ from generic Android `Axis 0/1/11/14/17/18`, confirm with the input mapper and update the bundled profiles.
+- ~~If AYN Thor/Odin axis names differ from generic Android `Axis 0/1/11/14/17/18`, confirm with the input
+  mapper and update the bundled profiles.~~ **Answered 2026-08-21.** See the input axis section below.
 - Decide later whether to add a user-facing "refresh bundled cheat cache" workflow, or keep regeneration as a repo/build-time script.

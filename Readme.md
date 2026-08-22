@@ -40,6 +40,7 @@ This fork intentionally diverges from a plain Dolphin Android build in several p
 - Savestates are enabled by default for this fork's Android workflow.
 - Fast-forward uses a user-configurable percentage with a 200% default and preserves audio pitch.
 - Optional AYN/Odin-style controller profiles are included for GameCube, Wii Classic Controller, and Wii Remote + Nunchuk layouts.
+- The bundled controller profiles bind the analog triggers to the axes the Thor's pad actually reports, which are not the ones Android nominally reserves for triggers.
 - A Thor motion profile drives the Wii Remote from the handheld's own gyroscope and accelerometer, including motion pointing, with Select + R1 to recenter.
 - Emulation threads can be pinned to the Thor's performance cores from the general settings. It is off by default because whether it helps depends on the game.
 - AYN Thor rumble is routed through Android game/media vibration instead of pretending every Android haptic path behaves the same.
